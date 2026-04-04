@@ -27,6 +27,7 @@ class OrderController extends Controller
         $user = $request->user();
         $search = $request->input('search');
         $status = $request->input('status', 'ALL');
+        $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
 
         $query = Order::query()
             ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'created_at'])
@@ -56,6 +57,10 @@ class OrderController extends Controller
             $query->where('status', $status);
         }
 
+        if ($jenis_pesanan && $jenis_pesanan !== 'ALL') {
+            $query->where('jenis_pesanan', $jenis_pesanan);
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
@@ -71,9 +76,10 @@ class OrderController extends Controller
         return Inertia::render('orders/index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => $request->only(['search', 'status', 'jenis_pesanan']),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
+            'availableTypes' => Order::distinct()->whereNotNull('jenis_pesanan')->pluck('jenis_pesanan'),
         ]);
     }
 

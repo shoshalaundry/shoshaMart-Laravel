@@ -1,0 +1,76 @@
+name: Deploy Laravel-React to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4' # Sesuaikan jika kamu pakai PHP 8.3
+
+      - name: Install Composer Dependencies
+        run: composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build Vite Assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'placeholder'
+
+      - name: Adding Known Hosts
+        run: ssh-keyscan -p ${{ secrets.HOST_PORT }} -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
+
+      - name: Sync Files via Rsync
+        run: |
+          rsync -avz --delete \
+          --exclude '.git' \
+          --exclude '.env' \
+          --exclude 'node_modules' \
+          --exclude 'tests' \
+          -e "ssh -p ${{ secrets.HOST_PORT }}" \
+          ./ ${{ secrets.HOST_USER }}@${{ secrets.HOST_IP }}:/home/${{ secrets.HOST_USER }}/domains/shoshamartv2.shoshalaundry.id/laravel_core/
+
+      - name: Execute Artisan & Setup Public HTML
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.HOST_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.HOST_PORT }}
+          script: |
+            cd /home/${{ secrets.HOST_USER }}/domains/shoshamartv2.shoshalaundry.id/laravel_core
+            
+            # Perbaiki permission storage jika ada error
+            chmod -R 775 storage bootstrap/cache
+            
+            # Optimasi backend & Migrasi
+            php artisan optimize:clear
+            php artisan optimize
+            php artisan migrate --force
+            
+            # Pindahkan aset ke public_html
+            cp -r public/* ../public_html/
+            
+            # Ubah root path di index.php
+            sed -i "s|__DIR__.'/../storage/|__DIR__.'/../laravel_core/storage/|g" ../public_html/index.php
+            sed -i "s|__DIR__.'/../vendor/|__DIR__.'/../laravel_core/vendor/|g" ../public_html/index.php
+            sed -i "s|__DIR__.'/../bootstrap/|__DIR__.'/../laravel_core/bootstrap/|g" ../public_html/index.php

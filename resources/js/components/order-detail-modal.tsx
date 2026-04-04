@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { show as ordersShow, approve as ordersApprove, cancel as ordersCancel, update as ordersUpdate, invoice as ordersInvoice } from '@/routes/orders/index';
 
@@ -82,6 +83,9 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
     const [availableProducts, setAvailableProducts] = useState<AvailableProduct[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [editedNamaPemesan, setEditedNamaPemesan] = useState('');
+    const [editedJenisPesanan, setEditedJenisPesanan] = useState('');
+    const [editedDate, setEditedDate] = useState('');
 
     useEffect(() => {
         if (open && orderId) {
@@ -98,6 +102,15 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                     const fetchedOrder = data.data ?? data;
                     setOrder(fetchedOrder);
                     setEditedItems(fetchedOrder.items || []);
+                    setEditedNamaPemesan(fetchedOrder.nama_pemesan || '');
+                    setEditedJenisPesanan(fetchedOrder.jenis_pesanan || '');
+
+                    // Format date to YYYY-MM-DD for input type="date"
+                    if (fetchedOrder.created_at) {
+                        const dateObj = new Date(fetchedOrder.created_at);
+                        setEditedDate(dateObj.toISOString().split('T')[0]);
+                    }
+
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
@@ -121,9 +134,13 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
     };
 
     const toggleEdit = () => {
-        if (!isEditing) {
+        if (!isEditing && order) {
             fetchAvailableProducts();
-            setEditedItems(order?.items || []);
+            setEditedItems(order.items || []);
+            setEditedNamaPemesan(order.nama_pemesan || '');
+            setEditedJenisPesanan(order.jenis_pesanan || '');
+            const dateObj = new Date(order.created_at);
+            setEditedDate(dateObj.toISOString().split('T')[0]);
         }
 
         setIsEditing(!isEditing);
@@ -183,8 +200,9 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
         setIsSaving(true);
 
         router.patch(ordersUpdate.url(order.id), {
-            nama_pemesan: order.nama_pemesan,
-            jenis_pesanan: order.jenis_pesanan,
+            nama_pemesan: editedNamaPemesan,
+            jenis_pesanan: editedJenisPesanan,
+            created_at: editedDate,
             items: editedItems.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity
@@ -233,7 +251,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
 
     const getStatusConfig = (status: string) => {
         if (!status) {
-            return { color: 'muted', icon: Package, label: 'Unknown' };
+            return { color: 'muted', icon: Package, label: 'Tidak Diketahui' };
         }
 
         switch (status.toLowerCase()) {
@@ -317,13 +335,13 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                     {/* Buyer Info Card */}
                                     <div className="space-y-4 md:space-y-5 animate-in slide-in-from-left duration-500">
                                         <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-primary/40 flex items-center gap-3">
-                                            Buyer Profile <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
+                                            Profil Pembeli <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
                                         </h4>
                                         <div className="p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-muted/10 border-2 border-primary/5 hover:border-primary/10 transition-all duration-300 space-y-5 md:space-y-6 shadow-sm">
                                             <div className="flex items-center gap-4 md:gap-6">
                                                 <div className="h-12 md:h-16 w-12 md:w-16 rounded-[1.2rem] md:rounded-[1.5rem] bg-background shadow-xl flex items-center justify-center text-primary group transition-all"><User className="w-6 md:w-8 h-6 md:h-8 group-hover:scale-110 transition-transform" /></div>
                                                 <div>
-                                                    <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5 opacity-60">Buyer Username</p>
+                                                    <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5 opacity-60">Username Pembeli</p>
                                                     <p className="font-[1000] text-lg md:text-2xl tracking-tighter italic uppercase text-foreground leading-none">{order.buyer.username}</p>
                                                 </div>
                                             </div>
@@ -341,7 +359,15 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                 <p className="text-[10px] md:text-xs font-black text-primary uppercase mb-1.5 tracking-widest flex items-center gap-2">
                                                     <Hash className="w-3 h-3" /> Nama Pemesan
                                                 </p>
-                                                <p className="font-[1000] text-base md:text-xl tracking-tighter italic text-foreground uppercase leading-none">{order.nama_pemesan}</p>
+                                                {isEditing ? (
+                                                    <Input
+                                                        value={editedNamaPemesan}
+                                                        onChange={e => setEditedNamaPemesan(e.target.value)}
+                                                        className="font-bold border-primary/20 focus:border-primary/50"
+                                                    />
+                                                ) : (
+                                                    <p className="font-[1000] text-base md:text-xl tracking-tighter italic text-foreground uppercase leading-none">{order.nama_pemesan}</p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -349,23 +375,54 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                     {/* Distribution / Status Detail Card */}
                                     <div className="space-y-4 md:space-y-5 animate-in slide-in-from-right duration-500">
                                         <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-primary/40 flex items-center gap-3">
-                                            Distribution <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
+                                            Distribusi <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
                                         </h4>
                                         <div className="p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-muted/10 border-2 border-primary/5 hover:border-primary/10 transition-all duration-300 space-y-5 md:space-y-6 shadow-sm">
                                             <div className="flex items-center gap-4 md:gap-6">
                                                 <div className="h-12 md:h-16 w-12 md:w-16 rounded-[1.2rem] md:rounded-[1.5rem] bg-background shadow-xl flex items-center justify-center text-primary group transition-all"><Tags className="w-6 md:w-8 h-6 md:h-8 group-hover:scale-110 transition-transform" /></div>
                                                 <div>
-                                                    <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5 opacity-60">Pricing Layer</p>
+                                                    <p className="text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-1.5 opacity-60">Lapisan Harga</p>
                                                     <p className="font-[1000] text-lg md:text-2xl tracking-tighter italic text-primary uppercase leading-none">TIER {order.tier.name}</p>
                                                 </div>
                                             </div>
 
                                             <div className="pt-5 border-t-2 border-primary/5">
                                                 <p className="text-[10px] md:text-xs font-black text-amber-600 uppercase mb-2 tracking-widest flex items-center gap-2">
-                                                    <Clock className="w-3 h-3" /> Jenis Pesanan
+                                                    <Clock className="w-3 h-3" /> {isEditing ? 'Revisi Jenis & Tanggal' : 'Jenis & Tanggal'}
                                                 </p>
-                                                <div className="px-5 py-1.5 rounded-full bg-amber-500/10 border-2 border-amber-500/20 w-fit">
-                                                    <p className="font-black text-[10px] md:text-xs tracking-[0.2em] italic text-amber-700 uppercase leading-none">{order.jenis_pesanan}</p>
+                                                <div className="space-y-3">
+                                                    {isEditing ? (
+                                                        <>
+                                                            <Select value={editedJenisPesanan} onValueChange={setEditedJenisPesanan}>
+                                                                <SelectTrigger className="h-10 rounded-xl border-2 border-amber-500/20 font-bold">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="awal bulan" className="font-bold text-[10px] uppercase tracking-widest">AKHIR BULAN</SelectItem>
+                                                                    <SelectItem value="pertengahan bulan" className="font-bold text-[10px] uppercase tracking-widest">PERTENGAHAN BULAN</SelectItem>
+                                                                    <SelectItem value="Lembur" className="font-bold text-[10px] uppercase tracking-widest">LEMBUR</SelectItem>
+                                                                    <SelectItem value="tambahan bulan ini" className="font-bold text-[10px] uppercase tracking-widest">TAMBAHAN BULAN INI</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Input
+                                                                type="date"
+                                                                value={editedDate}
+                                                                onChange={e => setEditedDate(e.target.value)}
+                                                                className="h-10 rounded-xl border-2 border-primary/20 font-bold"
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <div className="px-5 py-1.5 rounded-full bg-amber-500/10 border-2 border-amber-500/20 w-fit">
+                                                                <p className="font-black text-[10px] md:text-xs tracking-[0.2em] italic text-amber-700 uppercase leading-none">{order.jenis_pesanan}</p>
+                                                            </div>
+                                                            <div className="px-5 py-1.5 rounded-full bg-primary/10 border-2 border-primary/20 w-fit">
+                                                                <p className="font-black text-[10px] md:text-xs tracking-[0.2em] italic text-primary uppercase leading-none">
+                                                                    {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -393,7 +450,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                 <div className="space-y-6 md:space-y-8 pb-10">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                         <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-primary/40 flex items-center gap-3 w-full sm:w-auto">
-                                            Pesanana Items <div className="h-px flex-1 sm:w-24 bg-gradient-to-r from-primary/20 to-transparent" />
+                                            Item Pesanan <div className="h-px flex-1 sm:w-24 bg-gradient-to-r from-primary/20 to-transparent" />
                                         </h4>
 
                                         {isEditing && (
@@ -535,7 +592,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                 <thead>
                                                     <tr className="bg-muted/30 text-[10px] font-black uppercase tracking-[0.3em] text-primary/60 border-b border-primary/5">
                                                         <th className="px-6 py-7 text-left">Produk</th>
-                                                        <th className="px-4 py-7 text-center">Quantity</th>
+                                                        <th className="px-4 py-7 text-center">Kuantitas</th>
                                                         <th className="px-4 py-7 text-right">Satuan</th>
                                                         <th className="px-6 py-7 text-right">Grand Total</th>
                                                         {isEditing && <th className="px-4 py-7 text-center">Opsi</th>}

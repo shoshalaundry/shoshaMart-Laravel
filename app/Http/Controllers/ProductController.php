@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Tier;
 use App\Models\User;
@@ -20,7 +22,7 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin();
         $search = $request->input('search');
@@ -31,22 +33,21 @@ class ProductController extends Controller
                 if ($isSuperAdmin) {
                     return; // SuperAdmin sees all
                 }
-                
+
                 if ($user?->tier_id) {
                     $query->where('tier_id', $user->tier_id);
                 } else {
                     $query->whereRaw('1 = 0');
                 }
             }]);
-
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%");
             });
         }
 
-        $products = $query->latest()->paginate(12)->withQueryString();
+        $products = $query->orderBy('position', 'asc')->orderBy('name', 'asc')->paginate(12)->withQueryString();
 
         $products->getCollection()->each(function (Product $product) use ($user) {
             $product->display_price = $this->pricingService->getPriceForTier($product, $user?->tier_id);
@@ -61,8 +62,36 @@ class ProductController extends Controller
 
     public function apiIndex()
     {
-        $products = Product::select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url'])->get();
+        $products = Product::select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url'])
+            ->orderBy('position', 'asc')
+            ->orderBy('name', 'asc')
+            ->get();
+
         return response()->json($products);
+    }
+
+    public function reorder(Request $request)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        if (! $user?->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required|exists:products,id',
+        ]);
+
+        $ids = $request->input('ids');
+
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $index => $id) {
+                Product::where('id', $id)->update(['position' => $index]);
+            }
+        });
+
+        return back()->with('status', 'Catalog reordered successfully.');
     }
 
     public function store(StoreProductRequest $request)
@@ -123,7 +152,7 @@ class ProductController extends Controller
 
             if ($updatePastOrders) {
                 // Find all order items for this product
-                $orderItems = \App\Models\OrderItem::where('product_id', $product->id)
+                $orderItems = OrderItem::where('product_id', $product->id)
                     ->with('order')
                     ->get();
 
@@ -152,7 +181,7 @@ class ProductController extends Controller
                 if (! empty($affectedOrderIds)) {
                     $uniqueOrderIds = array_unique($affectedOrderIds);
                     foreach ($uniqueOrderIds as $orderId) {
-                        $order = \App\Models\Order::find($orderId);
+                        $order = Order::find($orderId);
                         if ($order) {
                             $order->update([
                                 'total_amount' => $order->items()->sum('subtotal'),
@@ -168,7 +197,7 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         if (! $user?->isSuperAdmin()) {
             abort(403);
@@ -181,7 +210,7 @@ class ProductController extends Controller
 
     public function downloadTemplate()
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         if (! $user?->isSuperAdmin()) {
             abort(403);
@@ -189,22 +218,22 @@ class ProductController extends Controller
 
         $tiers = Tier::all();
         $headers = ['name', 'sku', 'base_price', 'stock', 'satuan_barang', 'image_url'];
-        
+
         foreach ($tiers as $tier) {
-            $headers[] = 'price_' . strtoupper(str_replace(' ', '_', $tier->name));
+            $headers[] = 'price_'.strtoupper(str_replace(' ', '_', $tier->name));
         }
 
         $callback = function () use ($headers) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $headers);
-            
+
             // Sample Row
             $sample = ['Sample Product', 'SKU-001', '10000', '50', 'PCS', 'https://example.com/image.jpg'];
             foreach (array_slice($headers, 6) as $h) {
                 $sample[] = '9000';
             }
             fputcsv($file, $sample);
-            
+
             fclose($file);
         };
 
@@ -216,7 +245,7 @@ class ProductController extends Controller
 
     public function import(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
         if (! $user?->isSuperAdmin()) {
             abort(403);
@@ -228,13 +257,13 @@ class ProductController extends Controller
 
         $file = $request->file('file');
         $handle = fopen($file->getRealPath(), 'r');
-        $headerRow = fgetcsv($handle); 
-        
+        $headerRow = fgetcsv($handle);
+
         if (! $headerRow) {
             return back()->withErrors(['file' => 'CSV is empty or invalid.']);
         }
 
-        $tiers = Tier::all()->keyBy(fn($t) => 'price_' . strtoupper(str_replace(' ', '_', $t->name)));
+        $tiers = Tier::all()->keyBy(fn ($t) => 'price_'.strtoupper(str_replace(' ', '_', $t->name)));
 
         DB::transaction(function () use ($handle, $headerRow, $tiers) {
             while (($row = fgetcsv($handle)) !== false) {
@@ -242,7 +271,7 @@ class ProductController extends Controller
                     continue;
                 }
                 $data = array_combine($headerRow, $row);
-                
+
                 $product = Product::updateOrCreate(
                     ['sku' => $data['sku']],
                     [

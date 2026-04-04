@@ -71,8 +71,17 @@ class OrderPolicy
      */
     public function approve(User $user, Order $order): bool
     {
-        return $order->status === 'PENDING' && 
-               (($user->isAdminTier() && $user->tier_id === $order->tier_id) || $user->isSuperAdmin());
+        if ($user->isSuperAdmin()) {
+            return $order->status === 'PENDING';
+        }
+
+        if ($user->isAdminTier()) {
+            return $order->status === 'PENDING' &&
+                   ! empty($user->tier_id) &&
+                   $user->tier_id === $order->tier_id;
+        }
+
+        return false;
     }
 
     /**
@@ -80,8 +89,17 @@ class OrderPolicy
      */
     public function reject(User $user, Order $order): bool
     {
-        return $order->status === 'PENDING' && 
-               (($user->isAdminTier() && $user->tier_id === $order->tier_id) || $user->isSuperAdmin());
+        if ($user->isSuperAdmin()) {
+            return $order->status === 'PENDING';
+        }
+
+        if ($user->isAdminTier()) {
+            return $order->status === 'PENDING' &&
+                   ! empty($user->tier_id) &&
+                   $user->tier_id === $order->tier_id;
+        }
+
+        return false;
     }
 
     /**

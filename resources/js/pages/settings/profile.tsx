@@ -14,15 +14,15 @@ export default function Profile() {
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title="Pengaturan profil" />
 
-            <h1 className="sr-only">Profile settings</h1>
+            <h1 className="sr-only">Pengaturan profil</h1>
 
             <div className="space-y-6">
                 <Heading
                     variant="small"
-                    title="Profile information"
-                    description="Update your username, phone number, and branch name"
+                    title="Informasi profil"
+                    description="Perbarui username, nomor telepon, dan nama cabang Anda"
                 />
 
                 <Form
@@ -53,7 +53,7 @@ export default function Profile() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="phone">Phone Number</Label>
+                                <Label htmlFor="phone">Nomor Telepon</Label>
 
                                 <Input
                                     id="phone"
@@ -62,7 +62,7 @@ export default function Profile() {
                                     defaultValue={auth.user.phone}
                                     name="phone"
                                     required
-                                    placeholder="Phone number"
+                                    placeholder="Nomor telepon"
                                 />
 
                                 <InputError
@@ -72,7 +72,7 @@ export default function Profile() {
                             </div>
 
                             <div className="grid gap-2 opacity-60">
-                                <Label htmlFor="branch_name">Branch Name (Read-only)</Label>
+                                <Label htmlFor="branch_name">Nama Cabang (Hanya-baca)</Label>
 
                                 <Input
                                     id="branch_name"
@@ -99,7 +99,7 @@ export default function Profile() {
                                     leaveTo="opacity-0"
                                 >
                                     <p className="text-sm text-neutral-600">
-                                        Saved
+                                        Tersimpan
                                     </p>
                                 </Transition>
                             </div>
@@ -116,7 +116,7 @@ export default function Profile() {
 Profile.layout = {
     breadcrumbs: [
         {
-            title: 'Profile settings',
+            title: 'Pengaturan profil',
             href: edit(),
         },
     ],

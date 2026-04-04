@@ -7,8 +7,10 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Models\Tier;
 use App\Models\User;
 use App\Services\OrderService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -27,11 +29,11 @@ class OrderController extends Controller
         $status = $request->input('status', 'ALL');
 
         $query = Order::query()
-            ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'created_at', 'tier_id'])
+            ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'created_at'])
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
-                'histories.user:id,username'
+                'histories.user:id,username',
             ]);
 
         if ($user->role === 'SUPERADMIN' || $user->role === 'ADMIN_TIER') {
@@ -41,7 +43,11 @@ class OrderController extends Controller
         }
 
         if ($user->role === 'ADMIN_TIER') {
-            $query->where('tier_id', $user->tier_id);
+            if (empty($user->tier_id)) {
+                $query->whereRaw('1 = 0'); // Block if no tier is assigned
+            } else {
+                $query->where('tier_id', $user->tier_id);
+            }
         } elseif ($user->role === 'BUYER') {
             $query->where('buyer_id', $user->id);
         }
@@ -66,8 +72,8 @@ class OrderController extends Controller
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
             'filters' => $request->only(['search', 'status']),
-            'buyers' => $user->isSuperAdmin() ? \App\Models\User::where('role', 'BUYER')->select(['id', 'username', 'branch_name'])->get() : [],
-            'tiers' => \App\Models\Tier::select(['id', 'name'])->get(),
+            'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name'])->get() : [],
+            'tiers' => Tier::select(['id', 'name'])->get(),
         ]);
     }
 
@@ -133,7 +139,8 @@ class OrderController extends Controller
             $request->validated('items'),
             $request->user(),
             $request->validated('nama_pemesan'),
-            $request->validated('jenis_pesanan')
+            $request->validated('jenis_pesanan'),
+            $request->validated('created_at')
         );
 
         return redirect()->back()->with('message', 'Pesanan berhasil direvisi.');
@@ -145,7 +152,7 @@ class OrderController extends Controller
 
         $order->load(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name']);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.dotmatrix', compact('order'));
+        $pdf = Pdf::loadView('invoices.dotmatrix', compact('order'));
 
         // Custom paper size: 8.5 x 5.5 inch (Continuous Form Half Page)
         // 1 inch = 72 points -> 8.5 * 72 = 612, 5.5 * 72 = 396
@@ -160,14 +167,14 @@ class OrderController extends Controller
 
     public function bulkInvoice(Request $request)
     {
-        if (!$request->user()->isSuperAdmin()) {
+        if (! $request->user()->isSuperAdmin()) {
             abort(403);
         }
 
         $buyerId = $request->input('buyer_id');
         $jenisPesanan = $request->input('jenis_pesanan');
 
-        $query = \App\Models\Order::where('status', 'APPROVED')
+        $query = Order::where('status', 'APPROVED')
             ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name'])
             ->latest();
 
@@ -185,18 +192,19 @@ class OrderController extends Controller
             return back()->with('error', 'Tidak ada pesanan disetujui yang ditemukan untuk filter tersebut.');
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.bulk-dotmatrix', compact('orders'));
-        
+        $pdf = Pdf::loadView('invoices.bulk-dotmatrix', compact('orders'));
+
         // Custom paper size: 8.5 x 5.5 inch (Continuous Form Half Page)
         $pdf->setPaper([0, 0, 612, 396], 'portrait');
 
         $date = now()->format('Y-m-d');
+
         return $pdf->stream("BULK-INVOICE-{$date}.pdf");
     }
 
     public function destroy(Request $request, Order $order)
     {
-        if (!$request->user()->isSuperAdmin()) {
+        if (! $request->user()->isSuperAdmin()) {
             abort(403);
         }
 

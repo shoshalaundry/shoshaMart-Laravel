@@ -1,9 +1,10 @@
-import { Head, usePage, Link, router } from '@inertiajs/react';
+import { Head, usePage, Link, router, useForm } from '@inertiajs/react';
 import {
     ShoppingBag, Package, TrendingUp, History, LayoutDashboard,
     ArrowRight, Users, CheckCircle, Clock, AlertCircle, Filter,
     Search, RefreshCcw, X
 } from 'lucide-react';
+import { useState } from 'react';
 import {
     AreaChart,
     Area,
@@ -13,9 +14,21 @@ import {
     Tooltip,
     ResponsiveContainer
 } from 'recharts';
+import ProfileController from '@/actions/App/Http/Controllers/ProfileController';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -48,6 +61,22 @@ interface RecentActivity {
 export default function Dashboard() {
     const { auth, stats, recentActivity, chartData, filters, options } = usePage().props as any;
     const user = auth?.user;
+
+    const { data: phoneData, setData: setPhoneData, post: postPhone, processing: isSavingPhone, errors: phoneErrors } = useForm({
+        phone: user?.phone || '',
+        has_verified_phone: false,
+    });
+
+    const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(
+        user?.role === 'BUYER' && !user?.has_verified_phone
+    );
+
+    const submitPhone = (e: React.FormEvent) => {
+        e.preventDefault();
+        postPhone(ProfileController.updatePhone.url(), {
+            onSuccess: () => setIsPhoneModalOpen(false),
+        });
+    };
 
     const handleFilterChange = (key: string, value: string) => {
         const newFilters = { ...filters, [key]: value === 'all' ? '' : value };
@@ -99,7 +128,7 @@ export default function Dashboard() {
 
     return (
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10 w-full max-w-7xl mx-auto animate-in fade-in duration-700">
-            <Head title="Dashboard" />
+            <Head title="Dasbor" />
 
             {/* Welcome Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -359,6 +388,83 @@ export default function Dashboard() {
                     </Card>
                 </div>
             </div>
+            {/* Mandatory Phone Update Modal */}
+            <Dialog open={isPhoneModalOpen} onOpenChange={setIsPhoneModalOpen}>
+                <DialogContent className="max-w-md rounded-3xl p-0 border-none shadow-2xl overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+                    <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-black italic tracking-tight uppercase leading-none mb-2">Verifikasi Nomor</DialogTitle>
+                            <DialogDescription className="text-primary-foreground/80 font-bold text-xs uppercase tracking-widest leading-relaxed">
+                                Mohon lengkapi profil Anda untuk kenyamanan transaksi di Shosha Mart.
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    <form onSubmit={submitPhone} className="p-8 space-y-6">
+                        <div className="p-4 rounded-2xl bg-amber-500/5 border-2 border-amber-500/10 flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-[11px] font-bold leading-relaxed text-amber-700">
+                                <span className="uppercase tracking-widest block mb-1 opacity-70">Instruksi:</span>
+                                Gunakan no laundry yang ada pada tablet kasir.
+                            </p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="phone" className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Nomor WhatsApp Aktif</Label>
+                                <Input
+                                    id="phone"
+                                    placeholder="Contoh: 0812XXXXXXXX"
+                                    value={phoneData.phone}
+                                    onChange={(e) => setPhoneData('phone', e.target.value)}
+                                    className={`h-14 rounded-2xl border-2 font-bold px-6 focus:ring-primary/20 transition-all text-lg ${phoneErrors.phone ? 'border-destructive bg-destructive/5' : ''}`}
+                                    required
+                                    autoFocus
+                                />
+                                {phoneErrors.phone && (
+                                    <p className="text-[10px] font-bold text-destructive px-1 uppercase tracking-wider animate-in fade-in slide-in-from-top-1 duration-300">
+                                        {phoneErrors.phone}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed hover:border-primary/30 transition-colors cursor-pointer group">
+                                <div className="flex items-center h-5">
+                                    <Checkbox
+                                        id="has_verified_phone"
+                                        checked={phoneData.has_verified_phone}
+                                        onCheckedChange={(checked) => setPhoneData('has_verified_phone', checked === true)}
+                                        className="rounded-md h-5 w-5 border-2"
+                                    />
+                                </div>
+                                <div className="flex flex-col space-y-0.5">
+                                    <Label htmlFor="has_verified_phone" className="text-[11px] font-black uppercase tracking-tight cursor-pointer">
+                                        Simpan & Jangan Tampilkan Lagi
+                                    </Label>
+                                    <p className="text-[9px] text-muted-foreground font-medium italic">Modal ini tidak akan muncul kembali di masa mendatang.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="submit"
+                                disabled={isSavingPhone || !phoneData.phone}
+                                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black italic shadow-xl shadow-primary/20 flex items-center justify-center gap-3 text-sm uppercase tracking-widest transition-all hover:scale-[1.02]"
+                            >
+                                {isSavingPhone ? (
+                                    <RefreshCcw className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        Simpan Perubahan <CheckCircle className="w-5 h-5" />
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -366,7 +472,7 @@ export default function Dashboard() {
 Dashboard.layout = {
     breadcrumbs: [
         {
-            title: 'Dashboard',
+            title: 'Dasbor',
             href: dashboard.url(),
         },
     ],

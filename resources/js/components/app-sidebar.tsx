@@ -18,9 +18,7 @@ import {
 import { dashboard } from '@/routes';
 import { index as ordersIndex } from '@/routes/orders/index';
 import { index as productsIndex } from '@/routes/products/index';
-// @ts-expect-error: Wayfinder routes are dynamically generated and may not be fully typed in all environments
 import { index as usersIndex } from '@/routes/users/index';
-// @ts-expect-error: NavItem type might have strict requirements that routes don't always meet
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -39,7 +37,7 @@ export function AppSidebar() {
 
     const mainNavItems: NavItem[] = [
         {
-            title: 'Dashboard',
+            title: 'Dasbor',
             href: dashboard.url(),
             icon: LayoutGrid,
         },
@@ -74,12 +72,12 @@ export function AppSidebar() {
 
     const footerNavItems: NavItem[] = [
         {
-            title: 'Repository',
+            title: 'Repositori',
             href: 'https://github.com/laravel/react-starter-kit',
             icon: FolderGit2,
         },
         {
-            title: 'Documentation',
+            title: 'Dokumentasi',
             href: 'https://laravel.com/docs/starter-kits#react',
             icon: BookOpen,
         },

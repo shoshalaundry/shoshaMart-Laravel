@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OrderService
 {
@@ -44,10 +46,10 @@ class OrderService
     }
 
     public function createOrder(
-        array $items, 
-        User $user, 
-        string $namaPemesan, 
-        string $jenisPesanan, 
+        array $items,
+        User $user,
+        string $namaPemesan,
+        string $jenisPesanan,
         ?User $buyer = null,
         ?string $createdAt = null
     ): Order {
@@ -63,7 +65,7 @@ class OrderService
             }
         }])->whereIn('id', $productIds)->get()->keyBy('id');
 
-        return DB::transaction(function () use ($targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt, $isLocal) {
+        return DB::transaction(function () use ($targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt) {
             $totalAmount = 0;
             $orderItemsData = [];
 
@@ -76,7 +78,7 @@ class OrderService
                     $totalAmount += $subtotal;
 
                     $orderItemsData[] = [
-                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'id' => (string) Str::uuid(),
                         'product_id' => $product->id,
                         'quantity' => $quantity,
                         'price' => $price,
@@ -100,7 +102,7 @@ class OrderService
 
             $order = new Order($orderData);
             if ($createdAt) {
-                $order->created_at = $createdAt;
+                $order->created_at = Carbon::parse($createdAt);
             }
             $order->save();
 
@@ -109,14 +111,15 @@ class OrderService
             }
 
             $this->notifyAdminTier($order, $targetUser);
+            $this->notifyAdminGroup($order, $targetUser);
 
             return $order;
         });
     }
 
-    public function updateOrder(Order $order, array $items, User $actor, string $namaPemesan, string $jenisPesanan): Order
+    public function updateOrder(Order $order, array $items, User $actor, string $namaPemesan, string $jenisPesanan, ?string $createdAt = null): Order
     {
-        return DB::transaction(function () use ($order, $items, $actor, $namaPemesan, $jenisPesanan) {
+        return DB::transaction(function () use ($order, $items, $actor, $namaPemesan, $jenisPesanan, $createdAt) {
             // Load products with the order's ORIGINAL buyer's tier pricing
             $buyer = $order->buyer;
             $productIds = collect($items)->pluck('product_id')->unique()->toArray();
@@ -150,15 +153,26 @@ class OrderService
             $order->items()->delete();
             foreach ($syncedItems as $itemData) {
                 $order->items()->create(array_merge($itemData, [
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
+                    'id' => (string) Str::uuid(),
                 ]));
             }
 
-            $order->update([
+            $updateData = [
                 'total_amount' => $totalAmount,
                 'nama_pemesan' => $namaPemesan,
                 'jenis_pesanan' => $jenisPesanan,
-            ]);
+            ];
+
+            if ($createdAt) {
+                $updateData['created_at'] = $createdAt;
+            }
+
+            $order->update($updateData);
+
+            if ($createdAt) {
+                $order->created_at = Carbon::parse($createdAt);
+                $order->save();
+            }
 
             $order->histories()->create([
                 'user_id' => $actor->id,
@@ -177,10 +191,35 @@ class OrderService
 
         if ($adminTier) {
             $msg = "Pesanan Baru: {$order->id}\n"
-                . "Pemesan: {$order->nama_pemesan} ({$order->jenis_pesanan})\n"
-                . "Total: Rp ".number_format($order->total_amount, 0, ',', '.')."\n"
-                . "Dari: {$user->username} ({$user->branch_name})";
+                ."Pemesan: {$order->nama_pemesan} ({$order->jenis_pesanan})\n"
+                .'Total: Rp '.number_format($order->total_amount, 0, ',', '.')."\n"
+                ."Dari: {$user->username} ({$user->branch_name})";
             $this->fonnteService->sendMessage($adminTier->phone, $msg);
         }
+    }
+
+    protected function notifyAdminGroup(Order $order, User $user): void
+    {
+        $groupId = env('FONNTE_GROUP_ID');
+        if (! $groupId) {
+            return;
+        }
+
+        $dashboardUrl = config('app.url').'/orders';
+
+        $msg = "*PESANAN BARU - SHOSHA MART* 🛒\n\n"
+            ."Halo Admin, ada pesanan baru yang masuk.\n\n"
+            ."*Detail Pesanan:*\n"
+            ."• No. Pesanan: #{$order->order_number}\n"
+            ."• Nama Pemesan: {$order->nama_pemesan}\n"
+            ."• Jenis: {$order->jenis_pesanan}\n"
+            .'• Cabang: '.($user->branch_name ?? 'Utama')."\n"
+            .'• Total: Rp '.number_format($order->total_amount, 0, ',', '.')."\n\n"
+            ."*Aksi:*\n"
+            ."Mohon admin segera cek pesanan pada dashboard:\n"
+            ."{$dashboardUrl}\n\n"
+            .'Terima kasih.';
+
+        $this->fonnteService->sendMessage($groupId, $msg);
     }
 }

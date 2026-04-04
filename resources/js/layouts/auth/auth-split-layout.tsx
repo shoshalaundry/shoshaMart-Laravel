@@ -1,5 +1,4 @@
 import { Link, usePage } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -16,9 +15,15 @@ export default function AuthSplitLayout({
                 <div className="absolute inset-0 bg-zinc-900" />
                 <Link
                     href={home()}
-                    className="relative z-20 flex items-center text-lg font-medium"
+                    className="relative z-20 flex items-center gap-3 text-lg font-bold uppercase tracking-widest"
                 >
-                    <AppLogoIcon className="mr-2 size-8 fill-current text-white" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 p-1.5 backdrop-blur-sm border border-white/20">
+                        <img 
+                            src="/logo.png" 
+                            alt="Logo" 
+                            className="h-full w-full object-contain brightness-0 invert"
+                        />
+                    </div>
                     {name}
                 </Link>
             </div>
@@ -28,7 +33,13 @@ export default function AuthSplitLayout({
                         href={home()}
                         className="relative z-20 flex items-center justify-center lg:hidden"
                     >
-                        <AppLogoIcon className="h-10 fill-current text-black sm:h-12" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/5 p-2 shadow-2xl shadow-primary/10">
+                            <img 
+                                src="/logo.png" 
+                                alt="Logo" 
+                                className="h-full w-full object-contain"
+                            />
+                        </div>
                     </Link>
                     <div className="flex flex-col items-start gap-2 text-left sm:items-center sm:text-center">
                         <h1 className="text-xl font-medium">{title}</h1>

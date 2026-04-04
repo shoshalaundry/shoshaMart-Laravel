@@ -1,7 +1,6 @@
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { OrderDetailModal } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,6 +44,8 @@ export default function OrderIndex() {
     const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
     const [isQuickPrintOpen, setIsQuickPrintOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [availableProducts, setAvailableProducts] = useState<any[]>([]);
 
     const [quickPrintData, setQuickPrintData] = useState({
         buyer_id: 'ALL',
@@ -54,11 +55,21 @@ export default function OrderIndex() {
     const [reportData, setReportData] = useState({
         jenis_pesanan: 'ALL',
         tier_id: 'ALL',
-        format: 'pdf'
+        format: 'pdf',
+        start_date: '',
+        end_date: ''
     });
 
     const { data, setData, post, processing, reset } = useForm({
         reason: '',
+    });
+
+    const createOrderForm = useForm({
+        buyer_id: '',
+        nama_pemesan: '',
+        jenis_pesanan: 'awal bulan',
+        created_at: new Date().toISOString().split('T')[0],
+        items: [] as { product_id: string, quantity: number, name?: string, sku?: string, price?: number }[]
     });
 
     useEffect(() => {
@@ -120,6 +131,22 @@ export default function OrderIndex() {
         }
     };
 
+    const previewTotal = useMemo(() => {
+        return createOrderForm.data.items.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
+    }, [createOrderForm.data.items]);
+
+    const [productSearchQuery, setProductSearchQuery] = useState('');
+    const filteredSearchProducts = useMemo(() => {
+        if (!productSearchQuery) {
+return [];
+}
+
+        return availableProducts.filter(p =>
+            p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
+            p.sku.toLowerCase().includes(productSearchQuery.toLowerCase())
+        ).slice(0, 5);
+    }, [productSearchQuery, availableProducts]);
+
     return (
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10 w-full max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Head title="Manajemen Pesanan" />
@@ -138,6 +165,19 @@ export default function OrderIndex() {
 
                 {auth_role === 'SUPERADMIN' && (
                     <div className="flex items-center gap-3">
+                        <Button
+                            onClick={() => {
+                                setIsCreateModalOpen(true);
+
+                                if (availableProducts.length === 0) {
+                                    fetch('/api/products').then(res => res.json()).then(setAvailableProducts);
+                                }
+                            }}
+                            className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black italic uppercase tracking-widest px-8 h-14 shadow-2xl shadow-emerald-200 flex items-center gap-2 group"
+                        >
+                            <ShoppingCart className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                            TAMBAH PESANAN
+                        </Button>
                         <Button
                             onClick={() => setIsReportModalOpen(true)}
                             variant="outline"
@@ -536,6 +576,27 @@ export default function OrderIndex() {
                                 </Select>
                             </div>
 
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-primary">Tanggal Mulai</Label>
+                                    <Input
+                                        type="date"
+                                        value={reportData.start_date}
+                                        onChange={(e) => setReportData(prev => ({ ...prev, start_date: e.target.value }))}
+                                        className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-primary">Tanggal Selesai</Label>
+                                    <Input
+                                        type="date"
+                                        value={reportData.end_date}
+                                        onChange={(e) => setReportData(prev => ({ ...prev, end_date: e.target.value }))}
+                                        className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30"
+                                    />
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Format Laporan</Label>
                                 <div className="grid grid-cols-2 gap-4">
@@ -579,14 +640,372 @@ export default function OrderIndex() {
                                     url.searchParams.append('format', reportData.format);
                                     url.searchParams.append('jenis_pesanan', reportData.jenis_pesanan);
                                     url.searchParams.append('tier_id', reportData.tier_id);
+
+                                    if (reportData.start_date) {
+url.searchParams.append('start_date', reportData.start_date);
+}
+
+                                    if (reportData.end_date) {
+url.searchParams.append('end_date', reportData.end_date);
+}
+
                                     window.open(url.toString(), '_blank');
                                     setIsReportModalOpen(false);
                                 }}
                             >
-                                <ArrowRight className="h-4 w-4 mr-2" /> GENERATE REPORT
+                                <ArrowRight className="h-4 w-4 mr-2" /> BUAT LAPORAN
                             </Button>
                         </DialogFooter>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Order Modal - Enhanced UI */}
+            <Dialog open={isCreateModalOpen} onOpenChange={(val) => {
+                setIsCreateModalOpen(val);
+
+                if (!val) {
+                    createOrderForm.reset();
+                    setProductSearchQuery('');
+                }
+            }}>
+                <DialogContent className="w-full sm:w-[95dvw] md:max-w-5xl p-0 overflow-hidden border-none shadow-[0_0_80px_-15px_rgba(0,0,0,0.6)] rounded-none sm:rounded-[2.5rem] md:rounded-[3rem] h-[95dvh] sm:h-[90vh] flex flex-col focus:outline-none">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Buat Pesanan Baru</DialogTitle>
+                        <DialogDescription>Menu pembuatan pesanan manual oleh Superadmin.</DialogDescription>
+                    </DialogHeader>
+
+                    {/* Premium Header - Matches OrderDetailModal */}
+                    <div className="relative overflow-hidden shrink-0 bg-emerald-500/[0.03] border-b border-sidebar-border/50">
+                        <div className="absolute top-0 left-0 w-full h-[3px] bg-emerald-500 z-20" />
+                        <div className="bg-gradient-to-br from-muted/60 via-background to-muted/20 p-8 md:p-10 relative">
+                            {/* Decorative background element */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3" />
+
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-emerald-600 shadow-lg px-3 py-1 rounded-full text-white flex items-center gap-1.5 font-black text-[9px] md:text-[10px] tracking-[0.2em] uppercase">
+                                            <ShoppingCart className="w-3 h-3" /> NEW ORDER
+                                        </div>
+                                        <Badge variant="outline" className="rounded-full px-3 py-0.5 text-[10px] font-black border-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 uppercase tracking-wider">
+                                            SUPERADMIN MODE
+                                        </Badge>
+                                    </div>
+                                    <h2 className="text-3xl md:text-5xl font-[1000] italic tracking-tighter text-foreground/90 uppercase leading-none">
+                                        Tambah <span className="text-emerald-600 italic">Pesanan</span>
+                                    </h2>
+                                    <div className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                                        <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-emerald-600/60" /> Manual Processing</div>
+                                        <div className="w-1 h-1 rounded-full bg-emerald-600/20" />
+                                        <div className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-emerald-600/60" /> {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                                    </div>
+                                </div>
+
+                                <div className="text-left md:text-right w-full md:w-auto pt-6 md:pt-0 border-t md:border-none border-emerald-500/10">
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1.5 opacity-60">ESTIMASI TOTAL</p>
+                                    <p className="text-4xl md:text-6xl font-[1000] tracking-tighter leading-tight text-emerald-600 transition-all duration-500">
+                                        {formatCurrency(previewTotal)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-background">
+                        {/* Information Panel (Left) */}
+                        <div className="w-full md:w-[350px] lg:w-[400px] border-r border-sidebar-border/30 overflow-y-auto p-6 md:p-8 space-y-8 bg-muted/[0.02]">
+                            <div className="space-y-6">
+                                <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-primary/40 flex items-center gap-3">
+                                    Detail Transaksi <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
+                                </h4>
+
+                                <div className="space-y-5">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Cabang Tujuan</Label>
+                                        <Select value={createOrderForm.data.buyer_id} onValueChange={(val) => {
+                                            createOrderForm.setData('buyer_id', val);
+
+                                            // Reset items if buyer changes to ensure correct pricing (though we use base_price for now)
+                                            if (createOrderForm.data.items.length > 0) {
+                                                if (confirm('Mengubah cabang akan mengosongkan keranjang untuk penyesuaian harga. Lanjutkan?')) {
+                                                    createOrderForm.setData('items', []);
+                                                }
+                                            }
+                                        }}>
+                                            <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold focus:ring-emerald-500/20 focus:border-emerald-500/30">
+                                                <SelectValue placeholder="Pilih Cabang..." />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-2xl border-none shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] p-2">
+                                                {buyers?.map((b: any) => (
+                                                    <SelectItem key={b.id} value={b.id} className="rounded-xl p-3 focus:bg-emerald-50 transition-colors">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="font-bold text-sm text-foreground">{b.branch_name || b.username}</span>
+                                                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{b.username}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Nama Pemesan</Label>
+                                        <Input
+                                            value={createOrderForm.data.nama_pemesan}
+                                            onChange={e => createOrderForm.setData('nama_pemesan', e.target.value)}
+                                            placeholder="Contoh: Bpk. Slamet / Admin Cabang"
+                                            className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500/30 px-6 italic"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Jenis Pesanan</Label>
+                                            <Select value={createOrderForm.data.jenis_pesanan} onValueChange={(val) => createOrderForm.setData('jenis_pesanan', val)}>
+                                                <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="rounded-xl border-none shadow-2xl">
+                                                    <SelectItem value="awal bulan">AKHIR BULAN</SelectItem>
+                                                    <SelectItem value="pertengahan bulan">PERTENGAHAN</SelectItem>
+                                                    <SelectItem value="Lembur">LEMBUR</SelectItem>
+                                                    <SelectItem value="tambahan bulan ini">TAMBAHAN</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Tanggal</Label>
+                                            <Input
+                                                type="date"
+                                                value={createOrderForm.data.created_at}
+                                                onChange={e => createOrderForm.setData('created_at', e.target.value)}
+                                                className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold px-4"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 rounded-[2rem] bg-emerald-500/5 border-2 border-emerald-500/10 space-y-3">
+                                <div className="flex items-center gap-3 text-emerald-600">
+                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest leading-tight">Panduan Superadmin</p>
+                                </div>
+                                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed italic">
+                                    Pesanan yang dibuat secara manual akan langsung masuk ke database sebagai status <strong>PENDING</strong> dan perlu disetujui untuk proses invoice.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Inventory & Cart Panel (Right) */}
+                        <div className="flex-1 flex flex-col min-h-0">
+                            {/* Search Header */}
+                            <div className="p-6 md:p-8 border-b border-sidebar-border/30 bg-muted/[0.01]">
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                                        <Search className="w-5 h-5 text-emerald-600 group-focus-within:animate-pulse" />
+                                    </div>
+                                    <Input
+                                        placeholder="Cari SKU atau Nama Produk untuk ditambahkan..."
+                                        className="h-14 md:h-16 pl-14 pr-8 rounded-full border-2 border-emerald-500/10 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500/40 bg-emerald-500/[0.03] font-black italic text-sm tracking-tight placeholder:text-emerald-600/30"
+                                        value={productSearchQuery}
+                                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                                        disabled={!createOrderForm.data.buyer_id}
+                                    />
+                                    {!createOrderForm.data.buyer_id && (
+                                        <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] rounded-full flex items-center justify-center">
+                                            <p className="text-[10px] font-[1000] uppercase tracking-[0.3em] text-primary/40 italic">Pilih cabang terlebih dahulu</p>
+                                        </div>
+                                    )}
+
+                                    {/* Search Results Dropdown */}
+                                    {filteredSearchProducts.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-4 bg-background/95 backdrop-blur-xl border-2 border-emerald-500/20 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] z-[100] overflow-hidden divide-y divide-emerald-500/5 ring-8 ring-emerald-500/[0.03] animate-in zoom-in-95 fade-in duration-200">
+                                            {filteredSearchProducts.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    className="w-full text-left p-6 md:p-7 hover:bg-emerald-500/10 flex items-center justify-between group/item transition-all cursor-pointer"
+                                                    onClick={() => {
+                                                        const existing = createOrderForm.data.items.find(i => i.product_id === p.id);
+
+                                                        if (existing) {
+                                                            createOrderForm.setData('items', createOrderForm.data.items.map(i =>
+                                                                i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i
+                                                            ));
+                                                        } else {
+                                                            createOrderForm.setData('items', [
+                                                                ...createOrderForm.data.items,
+                                                                { product_id: p.id, quantity: 1, name: p.name, sku: p.sku, price: p.base_price }
+                                                            ]);
+                                                        }
+
+                                                        setProductSearchQuery('');
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="h-14 w-14 rounded-2xl bg-emerald-600 shadow-lg flex items-center justify-center text-white font-[1000] italic text-sm group-hover/item:scale-110 transition-transform">
+                                                            <Package className="w-7 h-7" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-[1000] text-base md:text-lg text-foreground tracking-tighter line-clamp-1 uppercase italic leading-none mb-1.5">{p.name}</p>
+                                                            <div className="flex items-center gap-3">
+                                                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-emerald-500/20 text-emerald-600">SKU: {p.sku}</Badge>
+                                                                <p className="text-[10px] font-black text-muted-foreground italic uppercase">{formatCurrency(p.base_price)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-emerald-500/10 p-2.5 rounded-full text-emerald-600 group-hover/item:bg-emerald-600 group-hover/item:text-white transition-all">
+                                                        <Plus className="w-5 h-5" />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Item List / Cart View */}
+                            <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-6 custom-scrollbar bg-emerald-500/[0.01]">
+                                <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-emerald-600/40 flex items-center gap-3">
+                                    Item Pesanan <span className="bg-emerald-600/10 text-emerald-600 px-2 py-0.5 rounded-md text-[9px]">{createOrderForm.data.items.length} ITEM</span> <div className="h-px flex-1 bg-gradient-to-r from-emerald-600/20 to-transparent" />
+                                </h4>
+
+                                <div className="space-y-4">
+                                    {createOrderForm.data.items.length === 0 ? (
+                                        <div className="h-64 flex flex-col items-center justify-center space-y-5 opacity-20 text-center px-10">
+                                            <div className="h-24 w-24 rounded-full bg-emerald-600/10 flex items-center justify-center">
+                                                <ShoppingCart className="w-10 h-10 text-emerald-600" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-[1000] uppercase tracking-[0.4em] text-emerald-600">Keranjang Kosong</p>
+                                                <p className="text-[10px] font-bold italic text-muted-foreground">Cari produk di atas untuk mulai menambahkan item pesanan.</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        createOrderForm.data.items.map((item, idx) => (
+                                            <div key={item.product_id} className="relative group p-6 rounded-[2.5rem] bg-background border-2 border-primary/5 hover:border-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/5 transition-all duration-300 flex flex-col sm:flex-row items-center justify-between gap-6 overflow-hidden">
+                                                {/* Background Accent */}
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                                <div className="flex items-center gap-5 w-full sm:w-auto">
+                                                    <div className="h-16 w-16 rounded-[1.5rem] bg-emerald-600 flex items-center justify-center text-white shadow-xl flex-shrink-0 group-hover:rotate-6 transition-transform">
+                                                        <Package className="w-8 h-8" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-[1000] text-base md:text-lg tracking-tighter text-foreground line-clamp-1 truncate uppercase italic leading-none mb-2">{item.name}</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest border-emerald-500/20 text-emerald-600">SKU: {item.sku}</Badge>
+                                                            <p className="text-[10px] font-black text-muted-foreground opacity-60 uppercase italic">{formatCurrency(item.price || 0)} / unit</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-none pt-4 sm:pt-0">
+                                                    <div className="flex flex-col items-start sm:items-center">
+                                                        <p className="text-[9px] font-black uppercase text-muted-foreground mb-1.5 px-1 opacity-50">Kuantitas</p>
+                                                        <div className="flex items-center gap-2 bg-muted/30 rounded-2xl p-1.5 border border-primary/5">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                                onClick={() => createOrderForm.setData('items', createOrderForm.data.items.map((it, i) =>
+                                                                    i === idx ? { ...it, quantity: Math.max(1, it.quantity - 1) } : it
+                                                                ))}
+                                                            >
+                                                                <Minus className="w-4 h-4" />
+                                                            </Button>
+                                                            <Input
+                                                                type="number"
+                                                                className="w-12 h-9 text-center p-0 border-none bg-transparent font-black text-sm tabular-nums focus-visible:ring-0"
+                                                                value={item.quantity}
+                                                                onChange={(e) => {
+                                                                    const val = parseInt(e.target.value) || 1;
+                                                                    createOrderForm.setData('items', createOrderForm.data.items.map((it, i) =>
+                                                                        i === idx ? { ...it, quantity: Math.max(1, val) } : it
+                                                                    ));
+                                                                }}
+                                                            />
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                                                onClick={() => createOrderForm.setData('items', createOrderForm.data.items.map((it, i) =>
+                                                                    i === idx ? { ...it, quantity: it.quantity + 1 } : it
+                                                                ))}
+                                                            >
+                                                                <Plus className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-right min-w-[120px]">
+                                                        <p className="text-[9px] font-black uppercase text-emerald-600 mb-1 px-1 opacity-60">Subtotal</p>
+                                                        <p className="font-[1000] text-xl md:text-2xl text-emerald-600 tracking-tighter italic leading-none">{formatCurrency((item.price || 0) * item.quantity)}</p>
+                                                    </div>
+
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-12 w-12 rounded-2xl text-destructive/30 hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all ml-2"
+                                                        onClick={() => createOrderForm.setData('items', createOrderForm.data.items.filter((_, i) => i !== idx))}
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Premium Sticky Footer */}
+                    <DialogFooter className="p-8 md:p-10 bg-background/95 backdrop-blur-3xl border-t-2 border-primary/5 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 z-50">
+                        <div className="hidden md:flex flex-col">
+                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1 opacity-50">INFORMASI FINAL</p>
+                            <p className="text-sm font-bold italic text-foreground tracking-tight">
+                                {createOrderForm.data.items.length} Item Produk terpilih untuk diproses.
+                            </p>
+                        </div>
+
+                        <div className="w-full md:w-auto flex flex-col sm:flex-row gap-4 items-center">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreateModalOpen(false);
+                                    createOrderForm.reset();
+                                    setProductSearchQuery('');
+                                }}
+                                className="w-full sm:w-auto rounded-full px-10 h-14 md:h-16 font-black italic border-2 border-muted-foreground/20 hover:bg-muted text-xs uppercase tracking-widest transition-all"
+                            >
+                                BATALKAN
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    createOrderForm.post('/orders', {
+                                        onSuccess: () => {
+                                            setIsCreateModalOpen(false);
+                                            createOrderForm.reset();
+                                            setProductSearchQuery('');
+                                        }
+                                    });
+                                }}
+                                disabled={createOrderForm.processing || createOrderForm.data.items.length === 0 || !createOrderForm.data.buyer_id}
+                                className="w-full sm:w-auto rounded-full px-10 md:px-16 bg-emerald-600 hover:bg-emerald-700 text-white font-[1000] italic h-14 md:h-16 shadow-[0_15px_40px_-5px_rgba(16,185,129,0.3)] text-sm md:text-lg uppercase tracking-widest transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-30 disabled:grayscale disabled:translate-y-0"
+                            >
+                                {createOrderForm.processing ? (
+                                    <Loader2 className="w-7 h-7 animate-spin mr-3" />
+                                ) : (
+                                    <CheckCircle className="w-7 h-7 mr-3" />
+                                )}
+                                SIMPAN PESANAN
+                            </Button>
+                        </div>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

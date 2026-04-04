@@ -1,7 +1,24 @@
+import type {
+    DragEndEvent} from '@dnd-kit/core';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
-import { ShoppingCart, Loader2, Plus, Pencil, Trash, Trash2, Package, Info, Upload, Download, FileSpreadsheet, Clock } from 'lucide-react';
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { ShoppingCart, Loader2, Plus, Pencil, Trash, Trash2, Package, Info, Upload, Download, FileSpreadsheet, Clock, GripVertical, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +87,64 @@ interface UserAuth {
         id: string;
         role: string;
     };
+}
+
+// Draggable Product Item for Reordering
+function SortableProductItem({ product }: { product: Product }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: product.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 'auto',
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn(
+                "flex items-center gap-4 p-4 bg-background border-2 rounded-2xl transition-all group",
+                isDragging ? "shadow-2xl border-primary ring-4 ring-primary/10 opacity-90 scale-[1.02]" : "border-muted/30 hover:border-primary/20"
+            )}
+        >
+            <div 
+                {...attributes} 
+                {...listeners} 
+                className="cursor-move p-2 -ml-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground group-hover:text-primary"
+            >
+                <GripVertical className="h-5 w-5" />
+            </div>
+
+            {product.image_url ? (
+                <div className="h-12 w-12 rounded-xl overflow-hidden bg-muted flex-shrink-0 border border-muted">
+                    <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                </div>
+            ) : (
+                <div className="h-12 w-12 rounded-xl bg-muted/50 flex items-center justify-center flex-shrink-0 border border-muted">
+                    <Package className="h-6 w-6 text-muted-foreground/30" />
+                </div>
+            )}
+
+            <div className="flex-1 min-w-0">
+                <p className="font-black text-sm uppercase tracking-tight truncate leading-tight">{product.name}</p>
+                <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{product.sku}</p>
+            </div>
+
+            <div className="text-right">
+                <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest border-primary/20 text-primary">
+                    {product.satuan_barang}
+                </Badge>
+            </div>
+        </div>
+    );
 }
 
 export default function ProductsIndex() {
@@ -192,6 +267,63 @@ export default function ProductsIndex() {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [isPriceConfirmModalOpen, setIsPriceConfirmModalOpen] = useState(false);
+    const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
+    const [reorderItems, setReorderItems] = useState<Product[]>([]);
+    const [isSavingReorder, setIsSavingReorder] = useState(false);
+
+    // --- Reordering Logic ---
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            setReorderItems((items) => {
+                const oldIndex = items.findIndex((i) => i.id === active.id);
+                const newIndex = items.findIndex((i) => i.id === over.id);
+
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
+
+    const startReordering = async () => {
+        setIsReorderModalOpen(true);
+
+        // Fetch all products for reordering (from API endpoint that returns all)
+        try {
+            const response = await fetch('/api/products');
+            const data = await response.json();
+            setReorderItems(data);
+        } catch (error) {
+            console.error("Failed to fetch products for reordering:", error);
+        }
+    };
+
+    const saveReorder = () => {
+        setIsSavingReorder(true);
+        router.post('/products/reorder', {
+            ids: reorderItems.map(i => i.id)
+        }, {
+            onSuccess: () => {
+                setIsReorderModalOpen(false);
+                setIsSavingReorder(false);
+            },
+            onError: () => {
+                setIsSavingReorder(false);
+                alert("Gagal menyimpan urutan.");
+            }
+        });
+    };
 
     const importForm = useForm({
         file: null as File | null,
@@ -327,6 +459,13 @@ return true;
                     />
                     {isSuperAdmin && (
                         <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={startReordering}
+                                className="rounded-full h-12 px-6 shadow-sm gap-2 border-2 border-emerald-500/20 text-emerald-600 hover:bg-emerald-50"
+                            >
+                                <GripVertical className="h-4 w-4" /> Merapikan Katalog
+                            </Button>
                             <Button
                                 variant="outline"
                                 onClick={() => setIsImportModalOpen(true)}
@@ -944,6 +1083,72 @@ return null;
                             onClick={() => setIsPriceConfirmModalOpen(false)}
                         >
                             Batalkan Perubahan
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Superadmin Reorder Modal */}
+            <Dialog open={isReorderModalOpen} onOpenChange={setIsReorderModalOpen}>
+                <DialogContent className="w-[95vw] sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl overflow-hidden flex flex-col h-[85vh]">
+                    <DialogHeader className="p-8 pb-4 shrink-0 bg-emerald-500/[0.03] border-b">
+                        <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-emerald-600 shadow-lg flex items-center justify-center text-white">
+                                <GripVertical className="h-6 w-6" />
+                            </div>
+                            <div className="flex flex-col">
+                                <DialogTitle className="text-2xl font-black italic tracking-tight uppercase leading-none mb-1">Merapikan Katalog</DialogTitle>
+                                <DialogDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Tarik dan pindahkan produk untuk mengatur urutan tampilan.</DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-3 custom-scrollbar">
+                        {reorderItems.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-30 py-20">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                <p className="font-black italic uppercase text-xs tracking-widest">Memuat produk...</p>
+                            </div>
+                        ) : (
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={reorderItems.map(i => i.id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    <div className="space-y-3">
+                                        {reorderItems.map((product) => (
+                                            <SortableProductItem key={product.id} product={product} />
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
+                        )}
+                    </div>
+
+                    <DialogFooter className="p-8 pt-4 bg-background border-t flex flex-col sm:flex-row gap-3">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsReorderModalOpen(false)}
+                            className="rounded-full h-14 px-8 font-black italic uppercase text-xs tracking-widest"
+                            disabled={isSavingReorder}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={saveReorder}
+                            disabled={isSavingReorder || reorderItems.length === 0}
+                            className="flex-1 rounded-full h-14 px-10 bg-emerald-600 hover:bg-emerald-700 text-white font-[1000] italic shadow-lg shadow-emerald-500/20 text-sm uppercase tracking-widest gap-3"
+                        >
+                            {isSavingReorder ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <Check className="h-5 w-5" />
+                            )}
+                            SIMPAN URUTAN BARU
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -7,15 +7,15 @@ import AuthLayout from '@/layouts/auth-layout';
 export default function VerifyEmail({ status }: { status?: string }) {
     return (
         <AuthLayout
-            title="Verify email"
-            description="Please verify your email address by clicking on the link we just emailed to you."
+            title="Verifikasi email"
+            description="Silakan verifikasi alamat email Anda dengan mengklik tautan yang baru saja kami kirimkan."
         >
-            <Head title="Verify email" />
+            <Head title="Verifikasi email" />
 
             {status === 'verification-link-sent' && (
                 <div className="mb-4 text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
+                    Tautan verifikasi baru telah dikirim ke alamat email yang
+                    Anda berikan saat pendaftaran.
                 </div>
             )}
 
@@ -26,7 +26,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                             {processing && (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
-                            Resend verification email
+                            Kirim ulang email verifikasi
                         </Button>
                     )}
                 </Form>
@@ -36,7 +36,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
                         type="submit"
                         className="text-sm text-muted-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:text-foreground hover:decoration-current! dark:decoration-neutral-500"
                     >
-                        Log out
+                        Keluar
                     </button>
                 </form>
             </div>
@@ -45,7 +45,7 @@ export default function VerifyEmail({ status }: { status?: string }) {
 }
 
 VerifyEmail.layout = {
-    title: 'Verify email',
+    title: 'Verifikasi email',
     description:
-        'Please verify your email address by clicking on the link we just emailed to you.',
+        'Silakan verifikasi alamat email Anda dengan mengklik tautan yang baru saja kami kirimkan.',
 };

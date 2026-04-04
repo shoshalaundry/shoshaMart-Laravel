@@ -2,27 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
 use App\Models\Order;
-use App\Models\Product;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $user = auth()->user();
-        
+        $user = $request->user();
+
         // Base query for orders based on role
         $query = Order::query();
-        
+
         if ($user->role === 'ADMIN_TIER') {
-            $query->where('tier_id', $user->tier_id);
+            if (empty($user->tier_id)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('tier_id', $user->tier_id);
+            }
         } elseif ($user->role === 'BUYER') {
             // Buyers only see their own dashboard (already logic is separate but for safety)
             $query->where('buyer_id', $user->id);
+
             return Inertia::render('dashboard', [
                 'stats' => [
                     ['title' => 'Pesanan Saya', 'value' => $user->orders()->count(), 'icon' => 'package', 'color' => 'text-blue-600'],
@@ -39,7 +42,7 @@ class DashboardController extends Controller
                     'branches' => [],
                     'types' => [],
                     'statuses' => [],
-                ]
+                ],
             ]);
         }
 
@@ -61,22 +64,22 @@ class DashboardController extends Controller
         // --- STATISTICS ---
         $stats = [
             [
-                'title' => 'Total Pesanan', 
-                'value' => (clone $query)->count(), 
-                'icon' => 'shopping-bag', 
-                'color' => 'text-blue-600'
+                'title' => 'Total Pesanan',
+                'value' => (clone $query)->count(),
+                'icon' => 'shopping-bag',
+                'color' => 'text-blue-600',
             ],
             [
-                'title' => 'Total Penjualan', 
-                'value' => 'Rp ' . number_format((clone $query)->sum('total_amount'), 0, ',', '.'), 
-                'icon' => 'trending-up', 
-                'color' => 'text-emerald-600'
+                'title' => 'Total Penjualan',
+                'value' => 'Rp '.number_format((clone $query)->sum('total_amount'), 0, ',', '.'),
+                'icon' => 'trending-up',
+                'color' => 'text-emerald-600',
             ],
             [
-                'title' => 'Pending', 
-                'value' => (clone $query)->where('status', 'PENDING')->count(), 
-                'icon' => 'clock', 
-                'color' => 'text-amber-600'
+                'title' => 'Pending',
+                'value' => (clone $query)->where('status', 'PENDING')->count(),
+                'icon' => 'clock',
+                'color' => 'text-amber-600',
             ],
         ];
 
@@ -122,7 +125,7 @@ class DashboardController extends Controller
                 'branches' => $availableBranches,
                 'types' => $availableTypes,
                 'statuses' => ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
-            ]
+            ],
         ]);
     }
 }

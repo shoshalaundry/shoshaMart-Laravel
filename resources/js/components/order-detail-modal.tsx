@@ -1,17 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { usePage, router } from '@inertiajs/react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { router } from '@inertiajs/react';
 import {
     CheckCircle, Clock, XCircle, Package, User, MapPin, Hash,
-    Calendar, Phone, ReceiptText, Tags, ShoppingCart, ArrowRight,
+    Calendar, Phone, ReceiptText, Tags, ShoppingCart,
     Edit, Save, Plus, Minus, Trash2, Search, Loader2, ChevronRight,
-    History, User2, Printer
+    User2, Printer
 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-// @ts-ignore
 import { show as ordersShow, approve as ordersApprove, cancel as ordersCancel, update as ordersUpdate, invoice as ordersInvoice } from '@/routes/orders/index';
 
 interface OrderItem {
@@ -86,9 +85,13 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
 
     useEffect(() => {
         if (open && orderId) {
-            setOrder(null);
-            setIsEditing(false);
-            setLoading(true);
+            // Use a slight delay to avoid synchronous state updates in effect
+            const timer = setTimeout(() => {
+                setOrder(null);
+                setIsEditing(false);
+                setLoading(true);
+            }, 0);
+
             fetch(ordersShow.url(orderId))
                 .then(res => res.json())
                 .then(data => {
@@ -98,11 +101,16 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                     setLoading(false);
                 })
                 .catch(() => setLoading(false));
+
+            return () => clearTimeout(timer);
         }
     }, [open, orderId]);
 
     const fetchAvailableProducts = async () => {
-        if (availableProducts.length > 0) return;
+        if (availableProducts.length > 0) {
+            return;
+        }
+
         try {
             const res = await fetch('/api/products');
             const data = await res.json();
@@ -117,6 +125,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
             fetchAvailableProducts();
             setEditedItems(order?.items || []);
         }
+
         setIsEditing(!isEditing);
     };
 
@@ -131,10 +140,12 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
     };
 
     const handleAddItem = (product: AvailableProduct) => {
-        if (editedItems.find(item => item.product_id === product.id)) return;
+        if (editedItems.find(item => item.product_id === product.id)) {
+            return;
+        }
 
         const newItem: OrderItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${crypto.randomUUID()}`,
             product_id: product.id,
             quantity: 1,
             price: product.base_price,
@@ -145,12 +156,15 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
             }
         };
 
-        setEditedItems([...editedItems, newItem]);
+        setEditedItems(prev => [...prev, newItem]);
         setSearchQuery('');
     };
 
     const filteredProducts = useMemo(() => {
-        if (!searchQuery) return [];
+        if (!searchQuery) {
+            return [];
+        }
+
         return availableProducts
             .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
             .filter(p => !editedItems.find(item => item.product_id === p.id))
@@ -162,7 +176,10 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
     }, [editedItems]);
 
     const handleSaveRevision = () => {
-        if (!order || isSaving) return;
+        if (!order || isSaving) {
+            return;
+        }
+
         setIsSaving(true);
 
         router.patch(ordersUpdate.url(order.id), {
@@ -187,26 +204,37 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
     };
 
     const handleApprove = () => {
-        if (!order || !confirm('Setujui pesanan ini?')) return;
+        if (!order || !confirm('Setujui pesanan ini?')) {
+            return;
+        }
+
         router.post(ordersApprove.url(order.id), {}, {
             onSuccess: () => onOpenChange(false),
         });
     };
 
     const handleCancel = () => {
-        if (!order || !confirm('Batalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.')) return;
+        if (!order || !confirm('Batalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.')) {
+            return;
+        }
+
         router.patch(ordersCancel.url(order.id), {}, {
             onSuccess: () => onOpenChange(false),
         });
     };
 
     const handlePrintInvoice = () => {
-        if (!order) return;
+        if (!order) {
+            return;
+        }
+
         window.open(ordersInvoice.url(order.id), '_blank');
     };
 
     const getStatusConfig = (status: string) => {
-        if (!status) return { color: 'muted', icon: Package, label: 'Unknown' };
+        if (!status) {
+            return { color: 'muted', icon: Package, label: 'Unknown' };
+        }
 
         switch (status.toLowerCase()) {
             case 'approved': return { color: 'emerald', icon: CheckCircle, label: 'Disetujui' };
@@ -602,63 +630,63 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                     {order.history_logs && order.history_logs.length > 0 && !isEditing && (
                                         <div className="space-y-6 md:space-y-8 animate-in slide-in-from-bottom-8 duration-700 delay-200 mt-12 pt-12 border-t-2 border-primary/5">
                                             <h4 className="text-[11px] uppercase font-[1000] tracking-[0.3em] text-primary/40 flex items-center gap-3">
-                                                Riwayat Pesanan <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" /> 
+                                                Riwayat Pesanan <div className="h-px flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
                                             </h4>
 
                                             <div className="relative pl-8 space-y-8 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-bottom before:from-primary/20 before:via-primary/5 before:to-transparent">
-                                               {order.history_logs.map((log, idx) => {
-                                                const lowerMsg = log.message.toLowerCase();
-                                                let colorClass = 'bg-primary/10 text-primary border-primary/5';
-                                                let dotClass = 'bg-primary';
-                                                
-                                                if (lowerMsg.includes('menyetujui')) {
-                                                    colorClass = 'bg-emerald-500/10 text-emerald-700 border-emerald-500/10';
-                                                    dotClass = 'bg-emerald-500';
-                                                } else if (lowerMsg.includes('menolak')) {
-                                                    colorClass = 'bg-destructive/10 text-destructive border-destructive/10';
-                                                    dotClass = 'bg-destructive';
-                                                } else if (lowerMsg.includes('membatalkan')) {
-                                                    colorClass = 'bg-rose-500/10 text-rose-700 border-rose-500/10';
-                                                    dotClass = 'bg-rose-500';
-                                                } else if (lowerMsg.includes('merevisi')) {
-                                                    colorClass = 'bg-amber-500/10 text-amber-700 border-amber-500/10';
-                                                    dotClass = 'bg-amber-500';
-                                                }
+                                                {order.history_logs.map((log, idx) => {
+                                                    const lowerMsg = log.message.toLowerCase();
+                                                    let colorClass = 'bg-primary/10 text-primary border-primary/5';
+                                                    let dotClass = 'bg-primary';
 
-                                                return (
-                                                    <div key={log.id} className="relative group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
-                                                        {/* Timeline Node */}
-                                                        <div className={`absolute -left-8 top-1 h-6 w-6 rounded-full bg-background border-4 border-muted shadow-sm z-10 group-hover:border-primary/40 transition-colors flex items-center justify-center`}>
-                                                            <div className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-                                                        </div>
+                                                    if (lowerMsg.includes('menyetujui')) {
+                                                        colorClass = 'bg-emerald-500/10 text-emerald-700 border-emerald-500/10';
+                                                        dotClass = 'bg-emerald-500';
+                                                    } else if (lowerMsg.includes('menolak')) {
+                                                        colorClass = 'bg-destructive/10 text-destructive border-destructive/10';
+                                                        dotClass = 'bg-destructive';
+                                                    } else if (lowerMsg.includes('membatalkan')) {
+                                                        colorClass = 'bg-rose-500/10 text-rose-700 border-rose-500/10';
+                                                        dotClass = 'bg-rose-500';
+                                                    } else if (lowerMsg.includes('merevisi')) {
+                                                        colorClass = 'bg-amber-500/10 text-amber-700 border-amber-500/10';
+                                                        dotClass = 'bg-amber-500';
+                                                    }
 
-                                                        <div className={`${colorClass} p-5 md:p-6 rounded-[2rem] border-2 transition-all duration-300`}>
-                                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                                                <div className="flex items-start gap-4">
-                                                                    <div className={`h-10 w-10 rounded-xl bg-background/60 shadow-sm flex items-center justify-center shrink-0`}>
-                                                                        <User2 className="w-5 h-5" />
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <p className="font-bold text-sm leading-tight tracking-tight">
-                                                                            {log.message}
-                                                                        </p>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className={`h-1 w-1 rounded-full opacity-40 ${dotClass}`} />
-                                                                            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Oleh: {log.user.username}</p>
+                                                    return (
+                                                        <div key={log.id} className="relative group animate-in fade-in slide-in-from-left duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
+                                                            {/* Timeline Node */}
+                                                            <div className={`absolute -left-8 top-1 h-6 w-6 rounded-full bg-background border-4 border-muted shadow-sm z-10 group-hover:border-primary/40 transition-colors flex items-center justify-center`}>
+                                                                <div className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                                                            </div>
+
+                                                            <div className={`${colorClass} p-5 md:p-6 rounded-[2rem] border-2 transition-all duration-300`}>
+                                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                                    <div className="flex items-start gap-4">
+                                                                        <div className={`h-10 w-10 rounded-xl bg-background/60 shadow-sm flex items-center justify-center shrink-0`}>
+                                                                            <User2 className="w-5 h-5" />
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <p className="font-bold text-sm leading-tight tracking-tight">
+                                                                                {log.message}
+                                                                            </p>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className={`h-1 w-1 rounded-full opacity-40 ${dotClass}`} />
+                                                                                <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Oleh: {log.user.username}</p>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 shadow-sm border border-black/5 self-end md:self-center">
-                                                                    <Clock className="w-3 h-3 opacity-40" />
-                                                                    <p className="text-[10px] font-black tracking-tight text-muted-foreground opacity-60">
-                                                                        {log.created_at}
-                                                                    </p>
+                                                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background/60 shadow-sm border border-black/5 self-end md:self-center">
+                                                                        <Clock className="w-3 h-3 opacity-40" />
+                                                                        <p className="text-[10px] font-black tracking-tight text-muted-foreground opacity-60">
+                                                                            {log.created_at}
+                                                                        </p>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
 
                                             </div>
                                         </div>

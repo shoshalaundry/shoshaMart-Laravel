@@ -1,5 +1,6 @@
 import { Link, usePage, router } from '@inertiajs/react';
 import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart } from 'lucide-react';
+import { useEffect } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,13 +16,12 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { index as productsIndex } from '@/routes/products/index';
-// @ts-ignore
-import { index as usersIndex } from '@/routes/users/index';
-// @ts-ignore
 import { index as ordersIndex } from '@/routes/orders/index';
+import { index as productsIndex } from '@/routes/products/index';
+// @ts-expect-error: Wayfinder routes are dynamically generated and may not be fully typed in all environments
+import { index as usersIndex } from '@/routes/users/index';
+// @ts-expect-error: NavItem type might have strict requirements that routes don't always meet
 import type { NavItem } from '@/types';
-import { useEffect } from 'react';
 
 export function AppSidebar() {
     const { auth } = usePage().props as any;

@@ -1,18 +1,17 @@
-import { useState } from 'react';
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Search, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { OrderDetailModal } from '@/components/order-detail-modal';
-import { Label } from '@/components/ui/label';
-// @ts-ignore
-import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy } from '@/routes/orders/index';
-import { Pagination, SearchInput } from '@/components/ui/pagination';
+import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useEffect } from 'react';
+import { OrderDetailModal } from '@/components/order-detail-modal';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Pagination, SearchInput } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy } from '@/routes/orders/index';
 
 interface Order {
     id: string;
@@ -74,7 +73,7 @@ export default function OrderIndex() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, statusFilter]);
+    }, [searchQuery, statusFilter, filters.search, filters.status]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -110,6 +109,7 @@ export default function OrderIndex() {
 
     const handleReject = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (rejectingOrder) {
             post(ordersReject.url(rejectingOrder.id), {
                 onSuccess: () => {
@@ -138,7 +138,7 @@ export default function OrderIndex() {
 
                 {auth_role === 'SUPERADMIN' && (
                     <div className="flex items-center gap-3">
-                        <Button 
+                        <Button
                             onClick={() => setIsReportModalOpen(true)}
                             variant="outline"
                             className="rounded-full border-2 border-primary/20 hover:bg-primary/5 text-primary font-black italic uppercase tracking-widest px-8 h-14 flex items-center gap-2 group"
@@ -146,7 +146,7 @@ export default function OrderIndex() {
                             <Filter className="h-5 w-5 group-hover:rotate-12 transition-transform" />
                             EXPORT LAPORAN
                         </Button>
-                        <Button 
+                        <Button
                             onClick={() => setIsQuickPrintOpen(true)}
                             className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black italic uppercase tracking-widest px-8 h-14 shadow-2xl shadow-primary/20 flex items-center gap-2 group"
                         >
@@ -239,7 +239,9 @@ export default function OrderIndex() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => { setSelectedOrderId(order.id); setIsDetailOpen(true); }}
+                                                    onClick={() => {
+                                                        setSelectedOrderId(order.id); setIsDetailOpen(true);
+                                                    }}
                                                     className="rounded-full font-bold hover:bg-primary/10 hover:text-primary gap-1"
                                                 >
                                                     <Eye className="h-4 w-4" /> Detail
@@ -309,7 +311,9 @@ export default function OrderIndex() {
                 open={isDetailOpen}
                 onOpenChange={setIsDetailOpen}
                 orderId={selectedOrderId}
-                onReject={(order) => { setIsDetailOpen(false); setRejectingOrder(order); }}
+                onReject={(order) => {
+                    setIsDetailOpen(false); setRejectingOrder(order);
+                }}
             />
 
             {/* Rejection Dialog */}
@@ -373,14 +377,14 @@ export default function OrderIndex() {
                         </div>
 
                         <DialogFooter className="flex-col sm:flex-row gap-3">
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 className="rounded-full font-black italic uppercase text-xs tracking-widest"
                                 onClick={() => setDeletingOrder(null)}
                             >
                                 Batal
                             </Button>
-                            <Button 
+                            <Button
                                 variant="destructive"
                                 className="flex-1 rounded-full h-12 font-black italic uppercase text-xs tracking-widest shadow-lg shadow-destructive/20"
                                 onClick={() => deletingOrder && handleDelete(deletingOrder.id)}
@@ -555,20 +559,20 @@ export default function OrderIndex() {
 
                         <div className="bg-primary/5 p-4 rounded-2xl border-2 border-primary/10">
                             <p className="text-[10px] font-bold text-primary italic leading-relaxed">
-                                • PDF: Tabel pesanan per halaman per cabang.<br/>
+                                • PDF: Tabel pesanan per halaman per cabang.<br />
                                 • Excel: Data pesanan per sheet per cabang.
                             </p>
                         </div>
 
                         <DialogFooter className="flex-col sm:flex-row gap-3">
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 className="rounded-full font-black italic uppercase text-xs tracking-widest"
                                 onClick={() => setIsReportModalOpen(false)}
                             >
                                 Batal
                             </Button>
-                            <Button 
+                            <Button
                                 className="flex-1 rounded-full h-12 font-black italic uppercase text-xs tracking-widest shadow-lg shadow-primary/20"
                                 onClick={() => {
                                     const url = new URL(window.location.origin + '/orders-report');

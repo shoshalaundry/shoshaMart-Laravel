@@ -1,17 +1,16 @@
-import { useState } from 'react';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
-import { Users, UserPlus, Pencil, Trash, Shield, ShoppingBag, Store, Search, Filter, Loader2, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-// @ts-ignore
-import { index as usersIndex, store as usersStore, update as usersUpdate, destroy as usersDestroy } from '@/routes/users/index';
-import { Pagination, SearchInput } from '@/components/ui/pagination';
+import { Users, UserPlus, Pencil, Trash, Shield, ShoppingBag, Store, Filter, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Pagination, SearchInput } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { index as usersIndex, store as usersStore, update as usersUpdate, destroy as usersDestroy } from '@/routes/users/index';
 
 interface User {
     id: string;
@@ -58,10 +57,11 @@ export default function UserIndex() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, roleFilter]);
+    }, [searchQuery, roleFilter, filters.role, filters.search]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (editingUser) {
             put(usersUpdate.url(editingUser.id), {
                 onSuccess: () => {
@@ -122,7 +122,13 @@ export default function UserIndex() {
                     </p>
                 </div>
 
-                <Dialog open={isCreateOpen} onOpenChange={(val) => { setIsCreateOpen(val); if(!val) { setEditingUser(null); reset(); } }}>
+                <Dialog open={isCreateOpen} onOpenChange={(val) => {
+                    setIsCreateOpen(val);
+
+                    if (!val) {
+                        setEditingUser(null); reset();
+                    }
+                }}>
                     <DialogTrigger asChild>
                         <Button className="h-12 px-8 rounded-full shadow-xl shadow-primary/20 hover:scale-105 transition-transform font-bold gap-2">
                             <UserPlus className="h-5 w-5" /> Tambah Pengguna
@@ -139,9 +145,9 @@ export default function UserIndex() {
                             <div className="grid gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="username" className="font-bold text-xs uppercase tracking-widest">Username</Label>
-                                    <Input 
-                                        id="username" 
-                                        value={data.username} 
+                                    <Input
+                                        id="username"
+                                        value={data.username}
                                         onChange={e => setData('username', e.target.value)}
                                         className="rounded-xl h-12 bg-muted/50 border-none focus-visible:ring-2 focus-visible:ring-primary"
                                         placeholder="Contoh: admintier_pusat"
@@ -152,10 +158,10 @@ export default function UserIndex() {
                                     <Label htmlFor="password font-bold text-xs uppercase tracking-widest">
                                         Password {editingUser && '(Kosongkan jika tidak diubah)'}
                                     </Label>
-                                    <Input 
-                                        id="password" 
+                                    <Input
+                                        id="password"
                                         type="password"
-                                        value={data.password} 
+                                        value={data.password}
                                         onChange={e => setData('password', e.target.value)}
                                         className="rounded-xl h-12 bg-muted/50 border-none focus-visible:ring-2 focus-visible:ring-primary"
                                         placeholder="********"
@@ -194,9 +200,9 @@ export default function UserIndex() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="branch" className="font-bold text-xs uppercase tracking-widest">Nama Cabang / Toko</Label>
-                                    <Input 
-                                        id="branch" 
-                                        value={data.branch_name} 
+                                    <Input
+                                        id="branch"
+                                        value={data.branch_name}
                                         onChange={e => setData('branch_name', e.target.value)}
                                         className="rounded-xl h-12 bg-muted/50 border-none"
                                         placeholder="Contoh: Shosha Mart Blok M"
@@ -204,8 +210,8 @@ export default function UserIndex() {
                                 </div>
                             </div>
                             <DialogFooter>
-                                <Button 
-                                    type="submit" 
+                                <Button
+                                    type="submit"
                                     disabled={processing}
                                     className="w-full h-12 rounded-full font-black text-lg shadow-xl shadow-primary/20"
                                 >
@@ -221,10 +227,10 @@ export default function UserIndex() {
             <Card className="border-sidebar-border/50 shadow-2xl shadow-foreground/5 overflow-hidden">
                 <CardHeader className="bg-muted/30 border-b border-sidebar-border/50 py-6 px-8">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        <SearchInput 
-                            value={searchQuery} 
-                            onChange={setSearchQuery} 
-                            placeholder="Cari username atau cabang..." 
+                        <SearchInput
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            placeholder="Cari username atau cabang..."
                             className="md:w-96"
                         />
                         <div className="flex items-center gap-2">
@@ -284,17 +290,19 @@ export default function UserIndex() {
                                         </td>
                                         <td className="px-8 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    onClick={() => { handleEdit(user); setIsCreateOpen(true); }}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        handleEdit(user); setIsCreateOpen(true);
+                                                    }}
                                                     className="rounded-full hover:bg-blue-500/10 hover:text-blue-600"
                                                 >
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
                                                     onClick={() => handleDelete(user.id)}
                                                     className="rounded-full hover:bg-destructive/10 hover:text-destructive"
                                                 >

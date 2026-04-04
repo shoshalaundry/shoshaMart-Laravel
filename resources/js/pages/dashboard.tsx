@@ -1,31 +1,30 @@
 import { Head, usePage, Link, router } from '@inertiajs/react';
-import { 
-    ShoppingBag, Package, TrendingUp, History, LayoutDashboard, 
-    ArrowRight, Users, CheckCircle, Clock, AlertCircle, Filter, 
+import {
+    ShoppingBag, Package, TrendingUp, History, LayoutDashboard,
+    ArrowRight, Users, CheckCircle, Clock, AlertCircle, Filter,
     Search, RefreshCcw, X
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-    Select, 
-    SelectContent, 
-    SelectItem, 
-    SelectTrigger, 
-    SelectValue 
-} from '@/components/ui/select';
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    ResponsiveContainer 
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
 } from 'recharts';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
 import { dashboard } from '@/routes';
 import { index as productsIndex } from '@/routes/products/index';
-// @ts-ignore
 import { index as usersIndex } from '@/routes/users/index';
 
 interface Stat {
@@ -92,7 +91,9 @@ export default function Dashboard() {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
     };
 
-    if (!user) return null;
+    if (!user) {
+        return null;
+    }
 
     const isFiltered = filters?.branch_name || filters?.jenis_pesanan || filters?.status;
 
@@ -107,9 +108,9 @@ export default function Dashboard() {
                         Selamat Datang, {user.username}!
                     </h1>
                     <p className="text-muted-foreground text-lg font-medium">
-                        {user.role === 'SUPERADMIN' 
-                            ? 'Ringkasan operasional Shosha Mart hari ini.' 
-                            : user.role === 'ADMIN_TIER' 
+                        {user.role === 'SUPERADMIN'
+                            ? 'Ringkasan operasional Shosha Mart hari ini.'
+                            : user.role === 'ADMIN_TIER'
                                 ? `Ringkasan untuk Tier ${user.tier?.name || 'Anda'}.`
                                 : `Cabang ${user.branch_name || 'Utama'}.`}
                     </p>
@@ -184,7 +185,7 @@ export default function Dashboard() {
                             </div>
 
                             <div className="flex items-end">
-                                <Button 
+                                <Button
                                     className={`w-full h-11 rounded-xl font-black italic tracking-widest uppercase transition-all duration-300 ${isFiltered ? 'bg-primary shadow-lg shadow-primary/30 scale-[1.02]' : 'bg-muted text-muted-foreground border-2 border-transparent'}`}
                                     onClick={() => handleFilterChange('', '')}
                                 >
@@ -200,6 +201,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 {stats?.map((stat: Stat, i: number) => {
                     const Icon = getIcon(stat.icon);
+
                     return (
                         <Card key={i} className="border-sidebar-border/50 dark:border-sidebar-border overflow-hidden group hover:border-primary/50 transition-all hover:shadow-lg relative">
                             <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-5 group-hover:opacity-10 transition-opacity ${stat.color.replace('text-', 'bg-')}`} />
@@ -230,35 +232,35 @@ export default function Dashboard() {
                             <AreaChart data={chartData}>
                                 <defs>
                                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
+                                <XAxis
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
                                     tick={{ fontSize: 10, fontWeight: 700, fill: '#64748B' }}
                                     interval={4}
                                 />
-                                <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
                                     tick={{ fontSize: 10, fontWeight: 700, fill: '#64748B' }}
-                                    tickFormatter={(v) => `Rp ${v >= 1000000 ? (v/1000000).toFixed(1) + 'jt' : (v/1000).toFixed(0) + 'rb'}`}
+                                    tickFormatter={(v) => `Rp ${v >= 1000000 ? (v / 1000000).toFixed(1) + 'jt' : (v / 1000).toFixed(0) + 'rb'}`}
                                 />
-                                <Tooltip 
+                                <Tooltip
                                     contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 800, fontSize: '12px' }}
                                     formatter={(v: any) => [formatCurrency(Number(v)), 'Total Pembelian']}
                                 />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="total" 
-                                    stroke="#4f46e5" 
+                                <Area
+                                    type="monotone"
+                                    dataKey="total"
+                                    stroke="#4f46e5"
                                     strokeWidth={4}
-                                    fillOpacity={1} 
-                                    fill="url(#colorTotal)" 
+                                    fillOpacity={1}
+                                    fill="url(#colorTotal)"
                                 />
                             </AreaChart>
                         </ResponsiveContainer>

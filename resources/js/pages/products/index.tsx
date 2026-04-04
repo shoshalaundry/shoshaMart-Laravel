@@ -1,11 +1,12 @@
-import { useState } from 'react';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
-import { ShoppingCart, Loader2, Plus, Pencil, Trash, Trash2, Package, Info, Upload, Download, FileSpreadsheet, Search, Clock } from 'lucide-react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { ShoppingCart, Loader2, Plus, Pencil, Trash, Trash2, Package, Info, Upload, Download, FileSpreadsheet, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { useEffect } from 'react';
+import OrderController from '@/actions/App/Http/Controllers/OrderController';
+import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -14,6 +15,9 @@ import {
     DialogFooter,
     DialogDescription
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Pagination, SearchInput } from '@/components/ui/pagination';
 import {
     Select,
     SelectContent,
@@ -26,16 +30,11 @@ import {
     SheetContent,
     SheetHeader,
     SheetTitle,
-    SheetTrigger,
     SheetFooter,
     SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from '@/lib/utils';
-import OrderController from '@/actions/App/Http/Controllers/OrderController';
-import ProductController from '@/actions/App/Http/Controllers/ProductController';
 import { index as productsIndex } from '@/routes/products/index';
-import { Pagination, SearchInput } from '@/components/ui/pagination';
-import { useEffect } from 'react';
 
 interface Tier {
     id: string;
@@ -74,12 +73,11 @@ interface UserAuth {
 }
 
 export default function ProductsIndex() {
-    const { auth, products, tiers, filters, app_is_local } = usePage().props as unknown as {
+    const { auth, products, tiers, filters } = usePage().props as unknown as {
         auth: UserAuth,
         products: PaginatedProducts,
         tiers: Tier[],
-        filters: { search?: string },
-        app_is_local: boolean
+        filters: { search?: string }
     };
     const isSuperAdmin = auth.user.role === 'SUPERADMIN';
     const isBuyer = auth.user.role === 'BUYER';
@@ -88,8 +86,10 @@ export default function ProductsIndex() {
     const [cartRegistry, setCartRegistry] = useState<Record<string, Product>>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('shosha_cart_registry');
+
             return saved ? JSON.parse(saved) : {};
         }
+
         return {};
     });
 
@@ -105,7 +105,7 @@ export default function ProductsIndex() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, filters.search]);
 
     // --- Buyer Cart Logic ---
     const cart = useForm<{
@@ -136,6 +136,7 @@ export default function ProductsIndex() {
 
         if (quantity <= 0) {
             cart.setData('items', cart.data.items.filter(item => item.product_id !== product_id));
+
             return;
         }
 
@@ -143,6 +144,7 @@ export default function ProductsIndex() {
         // Save product details to the registry so we can remember its price/name even if searched away
         if (!cartRegistry[product_id]) {
             const productInfo = products.data.find(p => p.id === product_id);
+
             if (productInfo) {
                 setCartRegistry(prev => ({ ...prev, [product_id]: productInfo }));
             }
@@ -164,6 +166,7 @@ export default function ProductsIndex() {
     const totalCartItems = cart.data.items.reduce((acc, item) => acc + item.quantity, 0);
     const totalCartPrice = cart.data.items.reduce((acc, item) => {
         const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
+
         return acc + (prod ? prod.display_price * item.quantity : 0);
     }, 0);
 
@@ -175,6 +178,7 @@ export default function ProductsIndex() {
                 cart.setData('items', []);
                 setCartRegistry({});
                 setIsCheckoutModalOpen(false);
+
                 if (typeof window !== 'undefined') {
                     localStorage.removeItem('shosha_cart_items');
                     localStorage.removeItem('shosha_cart_registry');
@@ -230,6 +234,7 @@ export default function ProductsIndex() {
             stock: product.stock,
             tier_prices: tiers.map(t => {
                 const existingPrice = product.tier_prices?.find(tp => tp.tier_id === t.id);
+
                 return { tier_id: t.id, price: existingPrice ? existingPrice.price : 0 };
             })
         });
@@ -237,17 +242,24 @@ export default function ProductsIndex() {
     };
 
     const hasPriceChanged = () => {
-        if (!editingProduct) return false;
-        if (parseFloat(productForm.data.base_price.toString()) !== parseFloat((editingProduct.base_price || 0).toString())) return true;
+        if (!editingProduct) {
+return false;
+}
+
+        if (parseFloat(productForm.data.base_price.toString()) !== parseFloat((editingProduct.base_price || 0).toString())) {
+return true;
+}
 
         return productForm.data.tier_prices.some(tp => {
             const original = editingProduct.tier_prices?.find(otp => otp.tier_id === tp.tier_id);
+
             return parseFloat((original ? original.price : 0).toString()) !== parseFloat(tp.price.toString());
         });
     };
 
     const handleProductSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (editingProduct && hasPriceChanged()) {
             setIsPriceConfirmModalOpen(true);
         } else {
@@ -400,6 +412,7 @@ export default function ProductsIndex() {
                                     <div className="space-y-1">
                                         {tiers.map(t => {
                                             const tp = product.tier_prices?.find(p => p.tier_id === t.id);
+
                                             return (
                                                 <div key={t.id} className="flex justify-between text-[10px] items-center">
                                                     <span className="text-muted-foreground uppercase tracking-wider font-semibold">{t.name}:</span>
@@ -492,7 +505,11 @@ export default function ProductsIndex() {
                             <div className="space-y-4">
                                 {cart.data.items.map((item) => {
                                     const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
-                                    if (!prod) return null;
+
+                                    if (!prod) {
+return null;
+}
+
                                     return (
                                         <Card key={item.product_id} className="border-2 border-muted/30 shadow-none hover:border-primary/20 transition-all group">
                                             <CardContent className="p-4 flex gap-4 items-center">
@@ -598,7 +615,11 @@ export default function ProductsIndex() {
                                     <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20">
                                         {cart.data.items.map((item) => {
                                             const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
-                                            if (!prod) return null;
+
+                                            if (!prod) {
+return null;
+}
+
                                             return (
                                                 <div key={item.product_id} className="flex justify-between items-center text-[11px] bg-background/50 p-2 rounded-lg border">
                                                     <div className="flex-1 min-w-0 pr-2">

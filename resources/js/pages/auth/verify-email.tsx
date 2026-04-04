@@ -1,8 +1,8 @@
 // Components
-import { Form, Head, usePage } from '@inertiajs/react';
+import { Form, Head } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
-import AuthLayout from '@/layouts/auth-layout';
 import { Button } from '@/components/ui/button';
+import AuthLayout from '@/layouts/auth-layout';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     return (

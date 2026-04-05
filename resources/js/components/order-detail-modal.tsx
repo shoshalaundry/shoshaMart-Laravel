@@ -246,6 +246,19 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
             return;
         }
 
+        // Mark as printed in background
+        fetch(`/orders/${order.id}/mark-as-printed`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        }).then(() => {
+            // Update local state if needed or just refresh via Inertia
+            router.reload({ only: ['orders'] });
+        });
+
         window.open(ordersInvoice.url(order.id), '_blank');
     };
 

@@ -28,9 +28,11 @@ class OrderController extends Controller
         $search = $request->input('search');
         $status = $request->input('status', 'ALL');
         $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
         $query = Order::query()
-            ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'created_at'])
+            ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'is_printed', 'created_at'])
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
@@ -61,6 +63,14 @@ class OrderController extends Controller
             $query->where('jenis_pesanan', $jenis_pesanan);
         }
 
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
@@ -76,10 +86,10 @@ class OrderController extends Controller
         return Inertia::render('orders/index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
-            'filters' => $request->only(['search', 'status', 'jenis_pesanan']),
+            'filters' => $request->only(['search', 'status', 'jenis_pesanan', 'start_date', 'end_date']),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
-            'availableTypes' => Order::distinct()->whereNotNull('jenis_pesanan')->pluck('jenis_pesanan'),
+            'availableTypes' => Order::TYPES,
         ]);
     }
 
@@ -168,6 +178,12 @@ class OrderController extends Controller
         $date = $order->created_at->format('Y-m-d');
         $filename = "{$branchName}-{$order->order_number}-{$date}.pdf";
 
+        $order->update(['is_printed' => true, 'printed_at' => now()]);
+        $order->histories()->create([
+            'user_id' => auth()->id(),
+            'message' => 'Invoice dicetak oleh '.auth()->user()->username,
+        ]);
+
         return $pdf->stream($filename);
     }
 
@@ -205,6 +221,15 @@ class OrderController extends Controller
 
         $date = now()->format('Y-m-d');
 
+        // Mark all these orders as printed
+        foreach ($orders as $order) {
+            $order->update(['is_printed' => true, 'printed_at' => now()]);
+            $order->histories()->create([
+                'user_id' => auth()->id(),
+                'message' => 'Invoice dicetak secara massal oleh '.auth()->user()->username,
+            ]);
+        }
+
         return $pdf->stream("BULK-INVOICE-{$date}.pdf");
     }
 
@@ -217,5 +242,20 @@ class OrderController extends Controller
         $order->delete();
 
         return back()->with('status', 'Pesanan berhasil dihapus permanen.');
+    }
+
+    public function markAsPrinted(Order $order)
+    {
+        $order->update([
+            'is_printed' => true,
+            'printed_at' => now(),
+        ]);
+
+        $order->histories()->create([
+            'user_id' => auth()->id(),
+            'message' => 'Invoice dicetak oleh '.auth()->user()->username,
+        ]);
+
+        return response()->json(['message' => 'Status cetak diperbarui']);
     }
 }

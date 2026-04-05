@@ -34,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/orders/{order}/reject', [OrderController::class, 'reject'])->name('orders.reject');
     Route::patch('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::patch('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
+    Route::post('/orders/{order}/mark-as-printed', [OrderController::class, 'markAsPrinted'])->name('orders.mark-as-printed');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
     Route::get('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');

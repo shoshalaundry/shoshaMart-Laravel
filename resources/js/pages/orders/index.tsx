@@ -1,5 +1,5 @@
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { OrderDetailModal } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ interface Order {
         can_approve: boolean;
         can_reject: boolean;
     };
+    is_printed: boolean;
 }
 
 export default function OrderIndex() {
@@ -39,6 +40,8 @@ export default function OrderIndex() {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL');
     const [jenisPesananFilter, setJenisPesananFilter] = useState(filters.jenis_pesanan || 'ALL');
+    const [startDate, setStartDate] = useState(filters.start_date || '');
+    const [endDate, setEndDate] = useState(filters.end_date || '');
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
@@ -75,14 +78,23 @@ export default function OrderIndex() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (searchQuery !== (filters.search || '') || 
+            const currentFilters = {
+                search: searchQuery,
+                status: statusFilter,
+                jenis_pesanan: jenisPesananFilter,
+                start_date: startDate,
+                end_date: endDate
+            };
+
+            const filtersChanged = 
+                searchQuery !== (filters.search || '') || 
                 statusFilter !== (filters.status || 'ALL') || 
-                jenisPesananFilter !== (filters.jenis_pesanan || 'ALL')) {
-                router.get(ordersIndex.url(), { 
-                    search: searchQuery, 
-                    status: statusFilter,
-                    jenis_pesanan: jenisPesananFilter 
-                }, {
+                jenisPesananFilter !== (filters.jenis_pesanan || 'ALL') ||
+                startDate !== (filters.start_date || '') ||
+                endDate !== (filters.end_date || '');
+
+            if (filtersChanged) {
+                router.get(ordersIndex.url(), currentFilters, {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true
@@ -91,7 +103,7 @@ export default function OrderIndex() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, statusFilter, jenisPesananFilter, filters.search, filters.status, filters.jenis_pesanan]);
+    }, [searchQuery, statusFilter, jenisPesananFilter, startDate, endDate, filters]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -237,41 +249,83 @@ export default function OrderIndex() {
                             placeholder="Cari ID Pesanan atau Buyer..."
                             className="md:w-96"
                         />
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="h-10 px-4 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center gap-2">
-                                    <Filter className="h-4 w-4 text-primary" />
-                                    <span className="text-primary font-bold">Status:</span>
-                                </Badge>
-                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                    <SelectTrigger className="w-40 rounded-full h-10 border-2 border-primary/20 font-bold text-xs">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl border-none shadow-2xl">
-                                        <SelectItem value="ALL">Semua Status</SelectItem>
-                                        <SelectItem value="PENDING">Menunggu (Pending)</SelectItem>
-                                        <SelectItem value="APPROVED">Disetujui (Approved)</SelectItem>
-                                        <SelectItem value="REJECTED">Ditolak (Rejected)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                            {/* Filter Status */}
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px] md:flex-none">
+                                <div className="flex items-center gap-2 bg-background border-2 border-primary/10 rounded-full pl-3 pr-1 h-12 shadow-sm w-full">
+                                    <Filter className="h-4 w-4 text-primary shrink-0" />
+                                    <span className="text-[10px] uppercase tracking-wider font-black text-muted-foreground whitespace-nowrap">Status</span>
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="border-none bg-transparent h-9 focus:ring-0 font-bold text-xs shadow-none px-2 shadow-none focus-visible:ring-0">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-none shadow-2xl">
+                                            <SelectItem value="ALL">Semua Status</SelectItem>
+                                            <SelectItem value="PENDING">Menunggu</SelectItem>
+                                            <SelectItem value="APPROVED">Disetujui</SelectItem>
+                                            <SelectItem value="REJECTED">Ditolak</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="h-10 px-4 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center gap-2">
-                                    <Filter className="h-4 w-4 text-primary" />
-                                    <span className="text-primary font-bold">Jenis:</span>
-                                </Badge>
-                                <Select value={jenisPesananFilter} onValueChange={setJenisPesananFilter}>
-                                    <SelectTrigger className="w-44 rounded-full h-10 border-2 border-primary/20 font-bold text-xs">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl border-none shadow-2xl">
-                                        <SelectItem value="ALL">Semua Jenis</SelectItem>
-                                        {(availableTypes as string[]).map(type => (
-                                            <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            {/* Filter Jenis */}
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px] md:flex-none">
+                                <div className="flex items-center gap-2 bg-background border-2 border-primary/10 rounded-full pl-3 pr-1 h-12 shadow-sm w-full">
+                                    <Tag className="h-4 w-4 text-primary shrink-0" />
+                                    <span className="text-[10px] uppercase tracking-wider font-black text-muted-foreground whitespace-nowrap">Jenis</span>
+                                    <Select value={jenisPesananFilter} onValueChange={setJenisPesananFilter}>
+                                        <SelectTrigger className="border-none bg-transparent h-9 focus:ring-0 font-bold text-xs shadow-none px-2 shadow-none focus-visible:ring-0 capitalize">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl border-none shadow-2xl">
+                                            <SelectItem value="ALL">Semua Jenis</SelectItem>
+                                            {(availableTypes as string[]).map(type => (
+                                                <SelectItem key={type} value={type} className="capitalize font-bold">{type}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {/* Filter Periode */}
+                            <div className="flex items-center gap-2 w-full lg:w-auto">
+                                <div className="flex items-center gap-3 bg-background border-2 border-primary/10 rounded-full px-4 h-12 shadow-sm w-full overflow-hidden">
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Calendar className="h-4 w-4 text-primary" />
+                                        <span className="text-[10px] uppercase tracking-wider font-black text-muted-foreground whitespace-nowrap">Periode</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 flex-1">
+                                        <Input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="border-none bg-transparent h-9 p-0 focus-visible:ring-0 text-xs font-bold text-center w-full min-w-[110px]"
+                                        />
+                                        <span className="text-primary/30 font-black text-xs">TO</span>
+                                        <Input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="border-none bg-transparent h-9 p-0 focus-visible:ring-0 text-xs font-bold text-center w-full min-w-[110px]"
+                                        />
+                                    </div>
+
+                                    {(startDate || endDate) && (
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 rounded-full hover:bg-destructive/10 text-destructive shrink-0"
+                                            onClick={() => {
+                                                setStartDate('');
+                                                setEndDate('');
+                                            }}
+                                        >
+                                            <XCircle className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -298,7 +352,14 @@ export default function OrderIndex() {
                                                     <Package className="h-6 w-6" />
                                                 </div>
                                                 <div>
-                                                    <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">#{order.id.slice(0, 8)}</div>
+                                                    <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">
+                                                        #{order.id.slice(0, 8)}
+                                                        {order.is_printed && (
+                                                            <span title="Ter-cetak">
+                                                                <CheckCircle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/10" />
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 font-black italic uppercase tracking-wider py-0.5 px-2 rounded-[0.4rem]">
                                                         {order.jenis_pesanan}
                                                     </Badge>

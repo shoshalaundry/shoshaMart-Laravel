@@ -9,9 +9,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-#[Fillable(['buyer_id', 'order_number', 'nama_pemesan', 'jenis_pesanan', 'tier_id', 'total_amount', 'status', 'rejection_reason', 'admin_notes', 'created_by', 'buyer_note', 'created_at'])]
+#[Fillable(['buyer_id', 'order_number', 'nama_pemesan', 'jenis_pesanan', 'tier_id', 'total_amount', 'status', 'rejection_reason', 'admin_notes', 'created_by', 'buyer_note', 'is_printed', 'printed_at', 'created_at'])]
 class Order extends Model
 {
+    const TYPES = [
+        'awal bulan',
+        'pertengahan bulan',
+        'Lembur',
+        'tambahan bulan ini',
+    ];
+
     /** @use HasFactory<OrderFactory> */
     use HasFactory, HasUuid;
 

@@ -173,10 +173,10 @@ export default function SettlementIndex() {
                         <div className="text-2xl font-bold text-red-700">
                             Rp {stats.total_debt.toLocaleString('id-ID')}
                         </div>
-                        <p className="text-xs text-red-600/70 mt-1">Estimasi dari {debtSummary.length} cabang</p>
+                        <p className="text-xs text-red-600/70 mt-1">Total seluruh hutang cabang yang belum lunas</p>
                     </CardContent>
                 </Card>
-
+ 
                 <Card className="overflow-hidden border-none bg-gradient-to-br from-blue-500/10 to-blue-600/5 shadow-sm border border-blue-100">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-blue-600 uppercase flex items-center gap-2">
@@ -188,10 +188,10 @@ export default function SettlementIndex() {
                         <div className="text-2xl font-bold text-blue-700">
                             Rp {stats.total_pending.toLocaleString('id-ID')}
                         </div>
-                        <p className="text-xs text-blue-600/70 mt-1">{stats.pending_count} Pengajuan perlu pengecekan</p>
+                        <p className="text-xs text-blue-600/70 mt-1">{stats.pending_count} Pengajuan baru dari seluruh periode</p>
                     </CardContent>
                 </Card>
-
+ 
                 <Card className="overflow-hidden border-none bg-gradient-to-br from-green-500/10 to-green-600/5 shadow-sm border border-green-100">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-green-600 uppercase flex items-center gap-2">
@@ -203,7 +203,7 @@ export default function SettlementIndex() {
                         <div className="text-2xl font-bold text-green-700">
                             Rp {stats.total_verified.toLocaleString('id-ID')}
                         </div>
-                        <p className="text-xs text-green-600/70 mt-1">Total pelunasan sah</p>
+                        <p className="text-xs text-green-600/70 mt-1">Total seluruh pelunasan sah (all-time)</p>
                     </CardContent>
                 </Card>
             </div>

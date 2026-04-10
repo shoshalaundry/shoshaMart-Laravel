@@ -37,15 +37,15 @@ class SettlementController extends Controller
             ->when($tierId, fn ($q) => $q->whereHas('buyer', fn ($bq) => $bq->where('tier_id', $tierId)))
             ->when(! $user->isSuperAdmin(), fn ($q) => $q->whereHas('buyer', fn ($bq) => $bq->where('tier_id', $user->tier_id)));
 
-        // Totals for Cards
-        $totalDebt = $debtSummary->sum('orders_sum_total_amount');
+        // Totals for Dashboard Cards (Global / All-time for better visibility)
+        // 1. Total Debt (Cross-month outstanding)
+        $globalDebtSummary = $this->debtService->getDebtSummary('1970-01-01', '2099-12-31', $tierId);
+        $totalGlobalDebt = $globalDebtSummary->sum('orders_sum_total_amount');
 
-        $pendingQuery = clone $settlementsQuery;
-        $totalPendingAmount = $pendingQuery->where('status', 'paid')->sum('total_amount');
-        $pendingCount = $pendingQuery->count();
-
-        $verifiedQuery = clone $settlementsQuery;
-        $totalVerifiedAmount = $verifiedQuery->where('status', 'verified')->sum('total_amount');
+        // 2. Settlement Statistics (Filtered by Date Range for consistency with table)
+        $totalPendingAmount = (clone $settlementsQuery)->where('status', 'paid')->sum('total_amount');
+        $pendingCount = (clone $settlementsQuery)->where('status', 'paid')->count();
+        $totalVerifiedAmount = (clone $settlementsQuery)->where('status', 'verified')->sum('total_amount');
 
         $settlements = $settlementsQuery->latest()->paginate(15);
 
@@ -53,7 +53,7 @@ class SettlementController extends Controller
             'debtSummary' => $debtSummary,
             'settlements' => $settlements,
             'stats' => [
-                'total_debt' => (float) $totalDebt,
+                'total_debt' => (float) $totalGlobalDebt,
                 'total_pending' => (float) $totalPendingAmount,
                 'pending_count' => (int) $pendingCount,
                 'total_verified' => (float) $totalVerifiedAmount,

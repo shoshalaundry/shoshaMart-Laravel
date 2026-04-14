@@ -36,9 +36,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: 'placeholder'
 
-      - name: Adding Known Hosts
-        run: ssh-keyscan -p ${{ secrets.HOST_PORT }} -H ${{ secrets.HOST_IP }} >> ~/.ssh/known_hosts
-
       - name: Sync Files via Rsync
         run: |
           rsync -avz --delete \
@@ -46,7 +43,7 @@ jobs:
           --exclude '.env' \
           --exclude 'node_modules' \
           --exclude 'tests' \
-          -e "ssh -p ${{ secrets.HOST_PORT }}" \
+          -e "ssh -p ${{ secrets.HOST_PORT }} -o StrictHostKeyChecking=no" \
           ./ ${{ secrets.HOST_USER }}@${{ secrets.HOST_IP }}:/home/${{ secrets.HOST_USER }}/domains/shoshamartv2.shoshalaundry.id/laravel_core/
 
       - name: Execute Artisan & Setup Public HTML

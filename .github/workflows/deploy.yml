@@ -1,4 +1,4 @@
-name: Deploy Laravel-React to Hostinger (FTP + Webhook)
+name: Deploy Laravel-React to Hostinger
 
 on:
   push:
@@ -30,25 +30,44 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Setup SSH Key
+        uses: shimataro/ssh-key-action@v2
         with:
-          server: ${{ secrets.HOST_IP }}
-          username: ${{ secrets.HOST_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          local-dir: ./
-          # Path absolut di server Hostinger (pastikan diakhiri /)
-          server-dir: domains/shoshamartv2.shoshalaundry.id/laravel_core/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            **/.env
-            **/storage/logs/**
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'placeholder'
 
-      - name: Run Artisan Commands via Webhook
+      - name: Sync Files via Rsync
         run: |
-          echo "Triggering Deployment Webhook..."
-          curl -s "https://shoshamartv2.shoshalaundry.id/deploy_api.php?token=SHOSHA_MART_DEPLOY_SECRET_XYZ"
+          rsync -avz --delete \
+          --exclude '.git' \
+          --exclude '.env' \
+          --exclude 'node_modules' \
+          --exclude 'tests' \
+          -e "ssh -p ${{ secrets.HOST_PORT }} -o StrictHostKeyChecking=no" \
+          ./ ${{ secrets.HOST_USER }}@${{ secrets.HOST_IP }}:/home/${{ secrets.HOST_USER }}/domains/shoshamartv2.shoshalaundry.id/laravel_core/
+
+      - name: Execute Artisan & Setup Public HTML
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.HOST_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.HOST_PORT }}
+          script: |
+            cd /home/${{ secrets.HOST_USER }}/domains/shoshamartv2.shoshalaundry.id/laravel_core
+            
+            # Perbaiki permission storage jika ada error
+            chmod -R 775 storage bootstrap/cache
+            
+            # Optimasi backend & Migrasi
+            php artisan optimize:clear
+            php artisan optimize
+            php artisan migrate --force
+            
+            # Pindahkan aset ke public_html
+            cp -r public/* ../public_html/
+            
+            # Ubah root path di index.php
+            sed -i "s|__DIR__.'/../storage/|__DIR__.'/../laravel_core/storage/|g" ../public_html/index.php
+            sed -i "s|__DIR__.'/../vendor/|__DIR__.'/../laravel_core/vendor/|g" ../public_html/index.php
+            sed -i "s|__DIR__.'/../bootstrap/|__DIR__.'/../laravel_core/bootstrap/|g" ../public_html/index.php

@@ -360,10 +360,16 @@ export default function OrderIndex() {
                                                 <div>
                                                     <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">
                                                         #{order.id.slice(0, 8)}
-                                                        {order.is_printed && (
+                                                        {order.is_printed ? (
                                                             <span title="Ter-cetak">
                                                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/10" />
                                                             </span>
+                                                        ) : (
+                                                            order.status === 'APPROVED' && (
+                                                                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[8px] font-black italic px-1.5 py-0 h-4 uppercase tracking-tighter">
+                                                                    BELUM CETAK
+                                                                </Badge>
+                                                            )
                                                         )}
                                                     </div>
                                                     <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 font-black italic uppercase tracking-wider py-0.5 px-2 rounded-[0.4rem]">

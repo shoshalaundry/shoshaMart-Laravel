@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\OrdersExport;
 use App\Models\Order;
+use App\Models\Tier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -25,6 +26,12 @@ class ReportController extends Controller
         $tierId = $request->input('tier_id');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+
+        $tierName = 'SEMUA TIER';
+        if ($tierId && $tierId !== 'ALL') {
+            $tier = Tier::find($tierId);
+            $tierName = $tier ? $tier->name : "TIER ID: {$tierId}";
+        }
 
         $query = Order::with(['buyer:id,username,branch_name', 'items.product:id,name,sku,satuan_barang'])
             ->withCount('items')
@@ -66,12 +73,12 @@ class ReportController extends Controller
 
         if ($format === 'pdf') {
             $groupedOrders = $orders->groupBy('buyer_id');
-            $pdf = Pdf::loadView('reports.orders', compact('groupedOrders', 'jenisPesanan'));
+            $pdf = Pdf::loadView('reports.orders', compact('groupedOrders', 'jenisPesanan', 'tierName'));
             $pdf->setPaper('a4', 'portrait');
 
             return $pdf->stream("{$filename}.pdf");
         }
 
-        return Excel::download(new OrdersExport($orders), "{$filename}.xlsx");
+        return Excel::download(new OrdersExport($orders, $tierName), "{$filename}.xlsx");
     }
 }

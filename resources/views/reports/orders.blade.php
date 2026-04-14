@@ -61,6 +61,54 @@
     </style>
 </head>
 <body>
+    {{-- Summary Page --}}
+    <div class="page">
+        <div class="header">
+            <h1>Ringkasan Tagihan Per Cabang</h1>
+            <div>Filter Jenis: {{ $jenisPesanan ?? 'SEMUA' }}</div>
+            <div>Tier: {{ strtoupper($tierName ?? 'SEMUA TIER') }}</div>
+        </div>
+
+        <div class="branch-info">
+            <strong>TANGGAL CETAK:</strong> {{ now()->format('d/m/Y H:i') }}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="10%" style="text-align: center;">No</th>
+                    <th width="60%">Nama Cabang</th>
+                    <th width="30%" class="text-right">Total Tagihan</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $grandTotalAllBranches = 0; @endphp
+                @foreach($groupedOrders as $buyerId => $orders)
+                    @php 
+                        $branchName = $orders->first()->buyer->branch_name ?? $orders->first()->buyer->username;
+                        $branchTotal = $orders->sum('total_amount');
+                        $grandTotalAllBranches += $branchTotal;
+                    @endphp
+                    <tr>
+                        <td style="text-align: center;">{{ $loop->iteration }}</td>
+                        <td>{{ strtoupper($branchName) }}</td>
+                        <td class="text-right">Rp. {{ number_format($branchTotal, 0, ',', '.') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr class="summary">
+                    <td colspan="2" class="text-right">TOTAL KESELURUHAN</td>
+                    <td class="text-right">Rp. {{ number_format($grandTotalAllBranches, 0, ',', '.') }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="footer">
+            Dokumen ini merupakan ringkasan tagihan resmi Shosha Mart.
+        </div>
+    </div>
+
     @foreach($groupedOrders as $buyerId => $orders)
         @php
             $firstOrder = $orders->first();

@@ -28,7 +28,13 @@ class OrderController extends Controller
         /** @var User $user */
         $user = $request->user();
         $search = $request->input('search');
-        $status = $request->input('status', 'ALL');
+        $status = $request->input('status');
+
+        if (! $status && $user->role === 'SUPERADMIN') {
+            $status = 'APPROVED';
+        }
+
+        $status = $status ?? 'ALL';
         $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
@@ -42,7 +48,7 @@ class OrderController extends Controller
             ]);
 
         if ($user->role === 'SUPERADMIN' || $user->role === 'ADMIN_TIER') {
-            $query->oldest();
+            $query->orderBy('is_printed', 'asc')->oldest();
         } else {
             $query->latest();
         }
@@ -88,7 +94,10 @@ class OrderController extends Controller
         return Inertia::render('orders/index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
-            'filters' => $request->only(['search', 'status', 'jenis_pesanan', 'start_date', 'end_date']),
+            'filters' => array_merge(
+                $request->only(['search', 'status', 'jenis_pesanan', 'start_date', 'end_date']),
+                ['status' => $status]
+            ),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
             'availableTypes' => Order::TYPES,

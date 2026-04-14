@@ -11,15 +11,20 @@ class OrdersExport implements WithMultipleSheets
 
     protected $orders;
 
-    public function __construct($orders)
+    protected $tierName;
+
+    public function __construct($orders, $tierName = 'SEMUA TIER')
     {
         $this->orders = $orders;
+        $this->tierName = $tierName;
     }
 
     public function sheets(): array
     {
         $sheets = [];
         $groupedOrders = $this->orders->groupBy('buyer_id');
+
+        $sheets[] = new BranchSummarySheet($groupedOrders, $this->tierName);
 
         foreach ($groupedOrders as $buyerId => $ordersByBranch) {
             $branchName = $ordersByBranch->first()->buyer->branch_name ?? $ordersByBranch->first()->buyer->username;

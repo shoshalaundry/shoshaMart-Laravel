@@ -41,6 +41,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/orders/{order}/mark-as-paid', [OrderController::class, 'markAsPaid'])->name('orders.mark-as-paid');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
+    Route::post('/orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore');
+    Route::post('/orders/{order}/restore-cancelled', [OrderController::class, 'restoreCancelled'])->name('orders.restore-cancelled');
     Route::get('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');
     Route::get('/orders-print', [OrderController::class, 'printIndex'])->name('orders.print-index');
     Route::get('/orders-report', [ReportController::class, 'exportOrders'])->name('orders.report');

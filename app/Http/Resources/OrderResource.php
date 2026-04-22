@@ -28,6 +28,8 @@ class OrderResource extends JsonResource
             'is_printed' => (bool) $this->is_printed,
             'printed_at' => $this->printed_at,
             'tier_id' => $this->tier_id,
+            'is_trashed' => $this->trashed(),
+            'deleted_at' => $this->deleted_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             'buyer' => [
                 'id' => $this->buyer->id,

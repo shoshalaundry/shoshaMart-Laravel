@@ -31,10 +31,7 @@ class OrderController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
 
-        if (! $status && $user->role === 'SUPERADMIN') {
-            $status = 'APPROVED';
-        }
-
+        // Default status filtering logic
         $status = $status ?? 'ALL';
         $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
         $startDate = $request->input('start_date');
@@ -64,7 +61,11 @@ class OrderController extends Controller
             $query->where('buyer_id', $user->id);
         }
 
-        if ($status && $status !== 'ALL') {
+        if ($status === 'TRASHED') {
+            $query->onlyTrashed();
+        }
+
+        if ($status && $status !== 'ALL' && $status !== 'TRASHED') {
             $query->where('status', $status);
         }
 
@@ -106,6 +107,38 @@ class OrderController extends Controller
         ]);
     }
 
+    public function restore(Request $request, string $id)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $order = Order::withTrashed()->findOrFail($id);
+        $order->restore();
+
+        $order->histories()->create([
+            'user_id' => $request->user()->id,
+            'message' => "{$request->user()->username} telah memulihkan pesanan yang dihapus.",
+        ]);
+
+        return redirect()->back()->with('message', 'Pesanan berhasil dipulihkan dari tempat sampah.');
+    }
+
+    public function restoreCancelled(Request $request, Order $order)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            abort(403);
+        }
+
+        if ($order->status !== 'CANCELLED') {
+            return redirect()->back()->with('error', 'Pesanan tidak dalam status dibatalkan.');
+        }
+
+        $this->orderService->updateOrderStatus($order, 'PENDING', $request->user());
+
+        return redirect()->back()->with('message', 'Pesanan berhasil diaktifkan kembali (Status: PENDING).');
+    }
+
     public function printIndex(Request $request)
     {
         /** @var User $user */
@@ -119,15 +152,25 @@ class OrderController extends Controller
         $search = $request->input('search');
         $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
 
-        // We only consider APPROVED orders for the Cetak Pesanan page.
+        $status = $request->input('status', 'APPROVED');
+
+        // We only consider specific orders for the Cetak Pesanan page.
         $query = Order::query()
             ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'is_printed', 'printed_at', 'created_at'])
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
                 'histories.user:id,username',
-            ])
-            ->where('status', Order::STATUS_DEBT); // 'APPROVED'
+            ]);
+
+        if ($status === 'TRASHED') {
+            $query->onlyTrashed();
+        } elseif ($status && $status !== 'ALL') {
+            $query->where('status', $status);
+        } else {
+            // Default to showing common active statuses for printing if ALL is selected
+            $query->whereIn('status', ['APPROVED', 'paid', 'verified']);
+        }
 
         if ($user->isAdminTier()) {
             if (empty($user->tier_id)) {
@@ -159,7 +202,10 @@ class OrderController extends Controller
         return Inertia::render('orders/print-index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
-            'filters' => $request->only(['search', 'jenis_pesanan']),
+            'filters' => array_merge(
+                $request->only(['search', 'jenis_pesanan', 'status']),
+                ['status' => $status]
+            ),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
             'availableTypes' => OrderType::orderBy('name')->pluck('name'),
@@ -167,9 +213,11 @@ class OrderController extends Controller
         ]);
     }
 
-    public function show(Order $order)
+    public function show(string $id)
     {
-        $order->load(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name', 'histories.user:id,username']);
+        $order = Order::withTrashed()
+            ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name', 'histories.user:id,username'])
+            ->findOrFail($id);
 
         return new OrderResource($order);
     }
@@ -320,7 +368,7 @@ class OrderController extends Controller
 
         $order->delete();
 
-        return back()->with('status', 'Pesanan berhasil dihapus permanen.');
+        return back()->with('status', 'Pesanan berhasil dihapus.');
     }
 
     public function markAsPrinted(Order $order)

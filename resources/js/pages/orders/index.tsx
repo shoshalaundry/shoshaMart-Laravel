@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination, SearchInput } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy } from '@/routes/orders/index';
+import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy, restore as ordersRestore, restoreCancelled as ordersRestoreCancelled } from '@/routes/orders/index';
 
 interface Order {
     id: string;
@@ -36,6 +36,8 @@ interface Order {
         can_reject: boolean;
     };
     is_printed: boolean;
+    is_trashed?: boolean;
+    deleted_at?: string;
 }
 
 export default function OrderIndex() {
@@ -120,6 +122,9 @@ export default function OrderIndex() {
             case 'pending': return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> Menunggu</Badge>;
             case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><AlertCircle className="w-3 h-3 mr-1" /> Ditolak</Badge>;
             case 'cancelled': return <Badge variant="outline" className="opacity-50 italic">Dibatalkan</Badge>;
+            case 'paid': return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><CreditCard className="w-3 h-3 mr-1" /> Sudah Bayar</Badge>;
+            case 'verified': return <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20"><Check className="w-3 h-3 mr-1" /> Lunas</Badge>;
+            case 'trashed': return <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20"><Trash2 className="w-3 h-3 mr-1" /> Terhapus</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }
     };
@@ -158,6 +163,17 @@ export default function OrderIndex() {
     const handleMarkAsPaid = (id: string) => {
         if (confirm('Tandai pesanan ini sebagai LUNAS secara manual?')) {
             router.post(`/orders/${id}/mark-as-paid`);
+        }
+    };
+    const handleRestore = (id: string) => {
+        if (confirm('Pulihkan pesanan ini dari tempat sampah?')) {
+            router.post(ordersRestore.url(id));
+        }
+    };
+
+    const handleRestoreCancelled = (id: string) => {
+        if (confirm('Aktifkan kembali pesanan yang dibatalkan ini? Status akan kembali menjadi PENDING.')) {
+            router.post(ordersRestoreCancelled.url(id));
         }
     };
 
@@ -276,7 +292,11 @@ export default function OrderIndex() {
                                             <SelectItem value="ALL">Semua Status</SelectItem>
                                             <SelectItem value="PENDING">Menunggu</SelectItem>
                                             <SelectItem value="APPROVED">Disetujui</SelectItem>
+                                            <SelectItem value="paid">Sudah Bayar</SelectItem>
+                                            <SelectItem value="verified">Lunas</SelectItem>
                                             <SelectItem value="REJECTED">Ditolak</SelectItem>
+                                            <SelectItem value="CANCELLED">Dibatalkan</SelectItem>
+                                            {auth_role === 'SUPERADMIN' && <SelectItem value="TRASHED">Tempat Sampah</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -407,7 +427,7 @@ export default function OrderIndex() {
                                             <div className="font-black text-base text-primary tracking-tighter">{formatCurrency(order.total_amount)}</div>
                                         </td>
                                         <td className="px-6 py-6 text-center">
-                                            {getStatusBadge(order.status)}
+                                            {order.is_trashed ? getStatusBadge('trashed') : getStatusBadge(order.status)}
                                         </td>
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -423,63 +443,88 @@ export default function OrderIndex() {
                                                 </Button>
 
                                                 <div className="flex items-center gap-2 ml-2 border-l pl-2">
-                                                    {(order.permissions.can_approve || order.permissions.can_reject) && (
-                                                        <>
-                                                            {order.permissions.can_approve && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="icon"
-                                                                    onClick={() => handleApprove(order.id)}
-                                                                    className="rounded-full bg-emerald-500 hover:bg-emerald-600 h-8 w-8 shadow-lg shadow-emerald-500/20"
-                                                                >
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                            {order.permissions.can_reject && (
-                                                                <Button
-                                                                    variant="destructive"
-                                                                    size="icon"
-                                                                    onClick={() => setRejectingOrder(order)}
-                                                                    className="rounded-full h-8 w-8 shadow-lg shadow-destructive/20"
-                                                                >
-                                                                    <XCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    )}
-
-                                                    {order.permissions.can_cancel && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleCancel(order.id)}
-                                                            className="rounded-full h-8 text-[10px] font-black uppercase text-destructive hover:bg-destructive/10"
-                                                        >
-                                                            Batal
-                                                        </Button>
-                                                    )}
-
-                                                    {order.status === 'APPROVED' && auth_role === 'SUPERADMIN' && (
+                                                    {order.is_trashed ? (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
-                                                            onClick={() => handleMarkAsPaid(order.id)}
+                                                            onClick={() => handleRestore(order.id)}
                                                             className="rounded-full h-8 text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
                                                         >
-                                                            <CreditCard className="h-3 w-3 mr-1" />
-                                                            Bayar Lunas
+                                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                                            Pulihkan
                                                         </Button>
-                                                    )}
+                                                    ) : (
+                                                        <>
+                                                            {(order.permissions.can_approve || order.permissions.can_reject) && (
+                                                                <>
+                                                                    {order.permissions.can_approve && (
+                                                                        <Button
+                                                                            variant="default"
+                                                                            size="icon"
+                                                                            onClick={() => handleApprove(order.id)}
+                                                                            className="rounded-full bg-emerald-500 hover:bg-emerald-600 h-8 w-8 shadow-lg shadow-emerald-500/20"
+                                                                        >
+                                                                            <CheckCircle className="h-4 w-4" />
+                                                                        </Button>
+                                                                    )}
+                                                                    {order.permissions.can_reject && (
+                                                                        <Button
+                                                                            variant="destructive"
+                                                                            size="icon"
+                                                                            onClick={() => setRejectingOrder(order)}
+                                                                            className="rounded-full h-8 w-8 shadow-lg shadow-destructive/20"
+                                                                        >
+                                                                            <XCircle className="h-4 w-4" />
+                                                                        </Button>
+                                                                    )}
+                                                                </>
+                                                            )}
 
-                                                    {auth_role === 'SUPERADMIN' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => setDeletingOrder(order)}
-                                                            className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                            {order.permissions.can_cancel && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleCancel(order.id)}
+                                                                    className="rounded-full h-8 text-[10px] font-black uppercase text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                    Batal
+                                                                </Button>
+                                                            )}
+
+                                                            {order.status === 'CANCELLED' && auth_role === 'SUPERADMIN' && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleRestoreCancelled(order.id)}
+                                                                    className="rounded-full h-8 text-[10px] font-black uppercase text-emerald-600 border-emerald-600/20 hover:bg-emerald-600/10"
+                                                                >
+                                                                    Aktifkan
+                                                                </Button>
+                                                            )}
+
+                                                            {order.status === 'APPROVED' && auth_role === 'SUPERADMIN' && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    onClick={() => handleMarkAsPaid(order.id)}
+                                                                    className="rounded-full h-8 text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                                                                >
+                                                                    <CreditCard className="h-3 w-3 mr-1" />
+                                                                    Bayar Lunas
+                                                                </Button>
+                                                            )}
+
+                                                            {auth_role === 'SUPERADMIN' && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => setDeletingOrder(order)}
+                                                                    className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                             </div>
@@ -826,6 +871,19 @@ url.searchParams.append('end_date', reportData.end_date);
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Tanggal Pesanan</Label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600/40 z-10 pointer-events-none" />
+                                            <Input
+                                                type="date"
+                                                value={createOrderForm.data.created_at}
+                                                onChange={e => createOrderForm.setData('created_at', e.target.value)}
+                                                className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500/30 pl-12 pr-6"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

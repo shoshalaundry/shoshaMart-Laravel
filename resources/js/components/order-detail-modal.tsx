@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { show as ordersShow, approve as ordersApprove, cancel as ordersCancel, update as ordersUpdate, invoice as ordersInvoice } from '@/routes/orders/index';
+import { show as ordersShow, approve as ordersApprove, cancel as ordersCancel, update as ordersUpdate, invoice as ordersInvoice, restore as ordersRestore, restoreCancelled as ordersRestoreCancelled } from '@/routes/orders/index';
 
 interface OrderItem {
     id: string;
@@ -61,6 +61,7 @@ interface Order {
         can_reject: boolean;
         can_generate_invoice: boolean;
     };
+    is_trashed?: boolean;
 }
 
 interface AvailableProduct {
@@ -260,6 +261,24 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
         });
 
         window.open(ordersInvoice.url(order.id), '_blank');
+    };
+
+    const handleRestore = () => {
+        if (!order) return;
+        if (confirm('Pulihkan pesanan ini dari tempat sampah?')) {
+            router.post(ordersRestore.url(order.id), {}, {
+                onSuccess: () => onOpenChange(false)
+            });
+        }
+    };
+
+    const handleRestoreCancelled = () => {
+        if (!order) return;
+        if (confirm('Aktifkan kembali pesanan yang dibatalkan ini? Status akan kembali menjadi PENDING.')) {
+            router.post(ordersRestoreCancelled.url(order.id), {}, {
+                onSuccess: () => onOpenChange(false)
+            });
+        }
     };
 
     const getStatusConfig = (status: string) => {
@@ -846,6 +865,24 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                 onClick={handlePrintInvoice}
                                             >
                                                 <Printer className="w-5 h-5 mr-2.5" /> {order.jenis_pesanan === 'opening' ? 'CETAK LAPORAN' : 'CETAK INVOICE'}
+                                            </Button>
+                                        )}
+
+                                        {order.is_trashed && (
+                                            <Button
+                                                className="rounded-full px-8 md:px-10 bg-emerald-600 hover:bg-emerald-700 font-[1000] italic h-12 md:h-14 shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)] text-[11px] md:text-sm uppercase tracking-widest transition-all hover:-translate-y-1"
+                                                onClick={handleRestore}
+                                            >
+                                                <CheckCircle className="w-5 h-5 mr-2.5" /> PULIHKAN DARI TRASH
+                                            </Button>
+                                        )}
+
+                                        {order.status === 'CANCELLED' && !order.is_trashed && (
+                                            <Button
+                                                className="rounded-full px-8 md:px-10 bg-emerald-600 hover:bg-emerald-700 font-[1000] italic h-12 md:h-14 shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)] text-[11px] md:text-sm uppercase tracking-widest transition-all hover:-translate-y-1"
+                                                onClick={handleRestoreCancelled}
+                                            >
+                                                <CheckCircle className="w-5 h-5 mr-2.5" /> AKTIFKAN KEMBALI
                                             </Button>
                                         )}
                                     </div>

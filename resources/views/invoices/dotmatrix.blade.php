@@ -11,8 +11,8 @@
 
         body {
             font-family: 'Courier', monospace;
-            font-size: 10pt;
-            margin: 0.5cm;
+            font-size: 9pt;
+            margin: 0.3cm;
             color: #000;
         }
 
@@ -25,8 +25,8 @@
 
         .info-table {
             width: 100%;
-            margin-bottom: 15px;
-            font-size: 11pt;
+            margin-bottom: 10px;
+            font-size: 9pt;
         }
 
         .info-table td {
@@ -36,18 +36,18 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 12pt;
+            margin-bottom: 10px;
+            font-size: 9.5pt;
         }
 
         .items-table th {
             border-bottom: 1px dashed #000;
             border-top: 1px dashed #000;
-            padding: 8px 0;
+            padding: 5px 0;
         }
 
         .items-table td {
-            padding: 6px 0;
+            padding: 4px 0;
         }
 
         .text-left {
@@ -69,7 +69,7 @@
 
         .signatures {
             width: 100%;
-            margin-top: 30px;
+            margin-top: 15px;
             font-size: 9pt;
         }
 
@@ -82,7 +82,7 @@
 
 <body>
     @php
-    $itemChunks = $order->items->chunk(8);
+    $itemChunks = $order->items->chunk(15);
     $totalChunks = count($itemChunks);
     @endphp
 
@@ -125,7 +125,7 @@
             <tbody>
                 @foreach($items as $item)
                 <tr>
-                    <td class="text-left">{{ ($loop->parent->index * 8) + $loop->iteration }}</td>
+                    <td class="text-left">{{ ($chunkIndex * 15) + $loop->iteration }}</td>
                     <td class="text-left">{{ $item->product->name }}</td>
                     <td class="text-right">{{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ $item->quantity }}</td>

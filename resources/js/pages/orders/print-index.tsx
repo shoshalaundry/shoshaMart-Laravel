@@ -134,6 +134,8 @@ export default function OrderIndex() {
             case 'pending': return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> Menunggu</Badge>;
             case 'rejected': return <Badge className="bg-destructive/10 text-destructive border-destructive/20"><AlertCircle className="w-3 h-3 mr-1" /> Ditolak</Badge>;
             case 'cancelled': return <Badge variant="outline" className="opacity-50 italic">Dibatalkan</Badge>;
+            case 'paid': return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20"><CreditCard className="w-3 h-3 mr-1" /> Sudah Bayar</Badge>;
+            case 'verified': return <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20"><Check className="w-3 h-3 mr-1" /> Lunas</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }
     };
@@ -275,7 +277,11 @@ export default function OrderIndex() {
                                             <SelectItem value="ALL">Semua Status</SelectItem>
                                             <SelectItem value="PENDING">Menunggu</SelectItem>
                                             <SelectItem value="APPROVED">Disetujui</SelectItem>
+                                            <SelectItem value="paid">Sudah Bayar</SelectItem>
+                                            <SelectItem value="verified">Lunas</SelectItem>
                                             <SelectItem value="REJECTED">Ditolak</SelectItem>
+                                            <SelectItem value="CANCELLED">Dibatalkan</SelectItem>
+                                            {auth_role === 'SUPERADMIN' && <SelectItem value="TRASHED">Tempat Sampah</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                 </div>

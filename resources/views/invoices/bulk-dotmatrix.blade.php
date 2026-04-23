@@ -97,7 +97,7 @@
 <body>
     @foreach($orders as $order)
     @php
-    $itemChunks = $order->items->chunk(15);
+    $itemChunks = $order->items->chunk(7);
     $totalChunks = count($itemChunks);
     @endphp
 
@@ -140,7 +140,7 @@
             <tbody>
                 @foreach($items as $item)
                 <tr>
-                    <td class="text-left">{{ ($chunkIndex * 15) + $loop->iteration }}</td>
+                    <td class="text-left">{{ ($chunkIndex * 7) + $loop->iteration }}</td>
                     <td class="text-left">{{ $item->product->name }}</td>
                     <td class="text-right">{{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ $item->quantity }}</td>
